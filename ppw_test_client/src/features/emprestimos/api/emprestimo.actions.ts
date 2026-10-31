@@ -228,3 +228,32 @@ export async function devolverEmprestimo(
     };
   }
 }
+
+export async function cancelarEmprestimo(id: string): Promise<ActionState<Emprestimo>> {
+  try {
+    const response = await fetch(`${API_URL}/${id}/cancelar`, {
+      method: 'POST',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || 'Erro ao cancelar reserva.',
+      };
+    }
+
+    revalidatePath('/emprestimos');
+    return {
+      success: true,
+      message: 'Reserva cancelada com sucesso!',
+      data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Erro ao conectar ao servidor.',
+    };
+  }
+}

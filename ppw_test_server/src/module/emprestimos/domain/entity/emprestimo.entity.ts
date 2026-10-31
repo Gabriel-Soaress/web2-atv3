@@ -49,13 +49,17 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     return new EmprestimoEntity(props);
   }
 
-  // Regra de negócio: registrar retirada
+  // ==========================================
+  // AÇÕES ORIENTADAS A EVENTOS DA FSM
+  // ==========================================
+
+  /**
+   * Evento: registrarRetirada()
+   * Transição: RESERVADO -> RETIRADO
+   */
   registrarRetirada(): void {
-    if (!this.props.status.isReservado()) {
-      throw new Error(
-        `Apenas itens com status RESERVADO podem ser retirados. Status atual: ${this.props.status.getValue()}`,
-      );
-    }
+    // Guarda de transição da FSM
+    this.props.status.validarTransicaoPara(StatusEmprestimoEnum.RETIRADO);
 
     const agora = new Date();
     const dataPrevista = new Date();
@@ -67,10 +71,15 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     (this.props as any).updateAt = agora;
   }
 
-  // Regra de negócio: renovar prazo
+  /**
+   * Evento: renovarPrazo()
+   * Transição: Válido para RETIRADO ou ATRASADO (regularização)
+   */
   renovarPrazo(): void {
     if (!this.props.status.isRetirado() && !this.props.status.isAtrasado()) {
-      throw new Error('Apenas itens retirados ou atrasados podem ter o prazo renovado.');
+      throw new Error(
+        `Apenas empréstimos RETIRADOS ou ATRASADOS podem ser renovados. Status atual: ${this.props.status.getValue()}`,
+      );
     }
 
     const agora = new Date();
@@ -88,25 +97,85 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     (this.props as any).updateAt = agora;
   }
 
-  // Regra de negócio: registrar devolução
+  /**
+   * Evento: registrarDevolucao()
+   * Transições:
+   *  - RETIRADO -> DEVOLVIDO
+   *  - ATRASADO -> DEVOLVIDO_COM_MULTA
+   */
   registrarDevolucao(temAvaria: boolean, descricaoAvaria?: string | null): void {
-    if (this.props.status.isDevolvido()) {
-      throw new Error('Este empréstimo já foi finalizado e devolvido.');
-    }
+    const proximoStatus = this.props.status.isAtrasado()
+      ? StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
+      : StatusEmprestimoEnum.DEVOLVIDO;
+
+    // Guarda de transição da FSM
+    this.props.status.validarTransicaoPara(proximoStatus);
 
     const agora = new Date();
     (this.props as any).dataDevolucao = agora;
-    (this.props as any).status = StatusEmprestimo.devolvido();
+    (this.props as any).status =
+      proximoStatus === StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
+        ? StatusEmprestimo.devolvidoComMulta()
+        : StatusEmprestimo.devolvido();
     (this.props as any).temAvaria = temAvaria;
     (this.props as any).descricaoAvaria = temAvaria ? descricaoAvaria : null;
     (this.props as any).updateAt = agora;
   }
 
-  // Regra de negócio: atualizar dados gerais do empréstimo/reserva
+  /**
+   * Evento: cancelarReserva()
+   * Transição: RESERVADO -> CANCELADO
+   */
+  cancelarReserva(): void {
+    // Guarda de transição da FSM
+    this.props.status.validarTransicaoPara(StatusEmprestimoEnum.CANCELADO);
+
+    const agora = new Date();
+    (this.props as any).status = StatusEmprestimo.cancelado();
+    (this.props as any).updateAt = agora;
+  }
+
+  /**
+   * Evento: expirarReserva()
+   * Transição: RESERVADO -> EXPIRADO (acionado por lazy evaluation ou timeout)
+   */
+  expirarReserva(): void {
+    // Guarda de transição da FSM
+    this.props.status.validarTransicaoPara(StatusEmprestimoEnum.EXPIRADO);
+
+    const agora = new Date();
+    (this.props as any).status = StatusEmprestimo.expirado();
+    (this.props as any).updateAt = agora;
+  }
+
+  /**
+   * Evento: marcarAtrasado()
+   * Transição: RETIRADO -> ATRASADO
+   */
+  marcarAtrasado(): void {
+    // Guarda de transição da FSM
+    this.props.status.validarTransicaoPara(StatusEmprestimoEnum.ATRASADO);
+
+    const agora = new Date();
+    (this.props as any).status = StatusEmprestimo.atrasado();
+    (this.props as any).updateAt = agora;
+  }
+
+  /**
+   * Atualização de dados cadastrais (título, tipo, usuário)
+   * Bloqueada para estados terminais.
+   */
   atualizarDados(tituloItem: string, tipoItem: string, usuarioNome: string): void {
+    if (this.props.status.isTerminal()) {
+      throw new Error(
+        `Não é permitido editar dados cadastrais de um empréstimo em estado final (${this.props.status.getValue()}).`,
+      );
+    }
+
     if (!tituloItem?.trim() || !tipoItem?.trim() || !usuarioNome?.trim()) {
       throw new Error('Todos os campos são obrigatórios.');
     }
+
     (this.props as any).tituloItem = tituloItem.trim();
     (this.props as any).tipoItem = tipoItem.trim().toUpperCase();
     (this.props as any).usuarioNome = usuarioNome.trim();

@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { AtualizarEmprestimoRequest } from '../../dto/emprestimo.request.dto';
 import { EmprestimoResponse } from '../../dto/emprestimo.response.dto';
 import {
@@ -30,7 +36,10 @@ export class AtualizarEmprestimoService implements AtualizarEmprestimoUseCase {
     try {
       emprestimo.atualizarDados(request.tituloItem, request.tipoItem, request.usuarioNome);
     } catch (err: any) {
-      throw new BadRequestException(err.message);
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      throw new UnprocessableEntityException(err.message);
     }
 
     const updated = await this.writeRepo.update(emprestimo);

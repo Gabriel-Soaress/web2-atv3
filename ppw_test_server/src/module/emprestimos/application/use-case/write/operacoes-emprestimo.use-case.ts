@@ -7,4 +7,6 @@ export interface OperacoesEmprestimoUseCase {
   retirar(id: string): Promise<EmprestimoResponse>;
   renovar(id: string): Promise<EmprestimoResponse>;
   devolver(id: string, request: RegistrarDevolucaoRequest): Promise<EmprestimoResponse>;
+  cancelar(id: string): Promise<EmprestimoResponse>;
+  marcarAtrasado(id: string): Promise<EmprestimoResponse>;
 }
