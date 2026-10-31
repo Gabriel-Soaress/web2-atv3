@@ -59,7 +59,7 @@ export class EmprestimosController {
     return this.findAllUseCase.execute();
   }
 
-  // 2. POST /emprestimos/reservar ou POST /emprestimos -> Criar reserva/empréstimo
+  // 2. POST /emprestimos -> Criar reserva
   @Post('reservar')
   async reservar(@Body() dto: CriarReservaRequest): Promise<EmprestimoResponse> {
     return this.criarReservaUseCase.execute(dto);
@@ -70,7 +70,7 @@ export class EmprestimosController {
     return this.criarReservaUseCase.execute(dto);
   }
 
-  // 3. PUT /emprestimos/:id -> Alterar dados do empréstimo
+  // 3. PUT /emprestimos/:id -> Atualização cadastral estrita (apenas dados descritivos, sem tocar em status)
   @Put(':id')
   async atualizar(
     @Param('id') id: string,
@@ -86,24 +86,69 @@ export class EmprestimosController {
     await this.excluirUseCase.execute(id);
   }
 
-  // 5. PATCH /emprestimos/:id/retirar -> Registrar retirada
-  @Patch(':id/retirar')
-  async retirar(@Param('id') id: string): Promise<EmprestimoResponse> {
+  // ==========================================
+  // EVENTOS EXPLÍCITOS DA MÁQUINA DE ESTADOS (FSM)
+  // Suporte a POST semântico e PATCH por compatibilidade
+  // ==========================================
+
+  // 5. POST|PATCH /emprestimos/:id/retirar -> Evento: Retirar item
+  @Post(':id/retirar')
+  async retirarPost(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.retirar(id);
   }
 
-  // 6. PATCH /emprestimos/:id/renovar -> Renovar prazo
-  @Patch(':id/renovar')
-  async renovar(@Param('id') id: string): Promise<EmprestimoResponse> {
+  @Patch(':id/retirar')
+  async retirarPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.retirar(id);
+  }
+
+  // 6. POST|PATCH /emprestimos/:id/renovar -> Evento: Renovar prazo
+  @Post(':id/renovar')
+  async renovarPost(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.renovar(id);
   }
 
-  // 7. PATCH /emprestimos/:id/devolver -> Registrar devolução
-  @Patch(':id/devolver')
-  async devolver(
+  @Patch(':id/renovar')
+  async renovarPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.renovar(id);
+  }
+
+  // 7. POST|PATCH /emprestimos/:id/devolver -> Evento: Registrar devolução
+  @Post(':id/devolver')
+  async devolverPost(
     @Param('id') id: string,
     @Body() dto: RegistrarDevolucaoRequest,
   ): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.devolver(id, dto);
+  }
+
+  @Patch(':id/devolver')
+  async devolverPatch(
+    @Param('id') id: string,
+    @Body() dto: RegistrarDevolucaoRequest,
+  ): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.devolver(id, dto);
+  }
+
+  // 8. POST|PATCH /emprestimos/:id/cancelar -> Evento: Cancelar reserva
+  @Post(':id/cancelar')
+  async cancelarPost(@Param('id') id: string): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.cancelar(id);
+  }
+
+  @Patch(':id/cancelar')
+  async cancelarPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.cancelar(id);
+  }
+
+  // 9. POST|PATCH /emprestimos/:id/marcar-atrasado -> Evento: Detectar/Registrar atraso
+  @Post(':id/marcar-atrasado')
+  async marcarAtrasadoPost(@Param('id') id: string): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.marcarAtrasado(id);
+  }
+
+  @Patch(':id/marcar-atrasado')
+  async marcarAtrasadoPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
+    return this.operacoesUseCase.marcarAtrasado(id);
   }
 }

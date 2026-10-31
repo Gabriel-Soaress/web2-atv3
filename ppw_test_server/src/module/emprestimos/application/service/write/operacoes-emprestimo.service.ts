@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { RegistrarDevolucaoRequest } from '../../dto/emprestimo.request.dto';
 import { EmprestimoResponse } from '../../dto/emprestimo.response.dto';
 import {
@@ -21,6 +27,13 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
     private readonly writeRepo: EmprestimoWriteRepository,
   ) {}
 
+  private tratarErroDominio(err: any): never {
+    if (err instanceof HttpException) {
+      throw err;
+    }
+    throw new UnprocessableEntityException(err.message || 'Erro de validação de domínio.');
+  }
+
   async retirar(id: string): Promise<EmprestimoResponse> {
     const emprestimo = await this.readRepo.findById(id);
     if (!emprestimo) {
@@ -30,7 +43,7 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
     try {
       emprestimo.registrarRetirada();
     } catch (err: any) {
-      throw new BadRequestException(err.message);
+      this.tratarErroDominio(err);
     }
 
     const updated = await this.writeRepo.update(emprestimo);
@@ -46,7 +59,7 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
     try {
       emprestimo.renovarPrazo();
     } catch (err: any) {
-      throw new BadRequestException(err.message);
+      this.tratarErroDominio(err);
     }
 
     const updated = await this.writeRepo.update(emprestimo);
@@ -62,7 +75,39 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
     try {
       emprestimo.registrarDevolucao(request.temAvaria, request.descricaoAvaria);
     } catch (err: any) {
-      throw new BadRequestException(err.message);
+      this.tratarErroDominio(err);
+    }
+
+    const updated = await this.writeRepo.update(emprestimo);
+    return EmprestimoMappers.toResponseFromEntity(updated);
+  }
+
+  async cancelar(id: string): Promise<EmprestimoResponse> {
+    const emprestimo = await this.readRepo.findById(id);
+    if (!emprestimo) {
+      throw new NotFoundException('Empréstimo não encontrado.');
+    }
+
+    try {
+      emprestimo.cancelarReserva();
+    } catch (err: any) {
+      this.tratarErroDominio(err);
+    }
+
+    const updated = await this.writeRepo.update(emprestimo);
+    return EmprestimoMappers.toResponseFromEntity(updated);
+  }
+
+  async marcarAtrasado(id: string): Promise<EmprestimoResponse> {
+    const emprestimo = await this.readRepo.findById(id);
+    if (!emprestimo) {
+      throw new NotFoundException('Empréstimo não encontrado.');
+    }
+
+    try {
+      emprestimo.marcarAtrasado();
+    } catch (err: any) {
+      this.tratarErroDominio(err);
     }
 
     const updated = await this.writeRepo.update(emprestimo);
