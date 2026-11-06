@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { EmprestimoEntity } from '../../domain/entity/emprestimo.entity';
-import { EmprestimoReadRepository } from '../../domain/ports/emprestimo.read.repository';
+import {
+  EmprestimoReadRepository,
+  HistoricoItemRecord,
+} from '../../domain/ports/emprestimo.read.repository';
 import { EmprestimoMappers } from '../mappers/emprestimo.mappers';
 
 @Injectable()
@@ -21,5 +24,22 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
     });
     if (!raw) return null;
     return EmprestimoMappers.toEntityFromPrisma(raw);
+  }
+
+  async findHistorico(emprestimoId: string): Promise<HistoricoItemRecord[]> {
+    const logs = await this.prisma.historicoEmprestimo.findMany({
+      where: { emprestimoId },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    return logs.map((log) => ({
+      id: log.id,
+      emprestimoId: log.emprestimoId,
+      statusAnterior: log.statusAnterior,
+      novoStatus: log.novoStatus,
+      autorAcao: log.autorAcao,
+      justificativa: log.justificativa,
+      timestamp: log.timestamp,
+    }));
   }
 }
