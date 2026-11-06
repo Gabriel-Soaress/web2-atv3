@@ -21,7 +21,7 @@ export default async function EmprestimosPage() {
                 Sistema de Controle de Empréstimos e Reservas
               </h1>
               <p className="text-sm text-muted-foreground">
-                Atividade 2 — Arquitetura Limpa (Clean Arch / CQRS) e Formulários com Dialogs (Next.js)
+                Atividade 3 — Máquina de Estados Finita (FSM), Trilha de Auditoria ACID, Multas e Lazy Evaluation
               </p>
             </div>
           </div>
