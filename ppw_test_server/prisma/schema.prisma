@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Emprestimo {
@@ -44,4 +44,28 @@ model HistoricoEmprestimo {
 
   @@index([emprestimoId])
   @@map("web2_A3_historico_emprestimos")
+}
+
+// Modelo legado preservado para integridade do banco do aluno
+model tickets {
+  id            String     @id
+  title         String
+  description   String
+  prioridade    Prioridade @default(BAIXA)
+  status        Status     @default(ABERTO)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime?
+  deleted_at    DateTime?
+  justificativa String?
+}
+
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum Status {
+  ABERTO
+  CONCLUIDO
 }
