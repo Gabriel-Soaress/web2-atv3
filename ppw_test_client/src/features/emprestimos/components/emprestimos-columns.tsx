@@ -50,7 +50,7 @@ export const getEmprestimoColumns = ({
 }: EmprestimoColumnsProps): ColumnDef<Emprestimo>[] => [
   {
     accessorKey: 'tituloItem',
-    header: () => <span className={styles.colHeader}>Item & Solicitante</span>,
+    header: () => <span>Item & Solicitante</span>,
     cell: ({ row }) => {
       const item = row.original;
       const isLivro = item.tipoItem?.toUpperCase().includes('LIVRO');
@@ -80,7 +80,7 @@ export const getEmprestimoColumns = ({
   },
   {
     accessorKey: 'status',
-    header: () => <span className={styles.colHeader}>Status (FSM)</span>,
+    header: () => <span>Status (FSM)</span>,
     cell: ({ row }) => {
       const status = row.original.status;
       switch (status) {
@@ -95,7 +95,7 @@ export const getEmprestimoColumns = ({
           return (
             <span className={`${styles.badgeFsm} ${styles.badgeRetirado}`}>
               <BookOpen size={12} />
-              Em Uso (Retirado)
+              Em Uso
             </span>
           );
         case 'ATRASADO':
@@ -140,7 +140,7 @@ export const getEmprestimoColumns = ({
   },
   {
     accessorKey: 'datas',
-    header: () => <span className={styles.colHeader}>Prazos / Multa</span>,
+    header: () => <span>Prazos / Multa</span>,
     cell: ({ row }) => {
       const {
         dataLimiteRetirada,
@@ -159,7 +159,7 @@ export const getEmprestimoColumns = ({
             <div className={styles.prazoRow}>
               <Clock size={12} className="text-amber-600 shrink-0" />
               <span>
-                Retirar até: <strong>{new Date(dataLimiteRetirada).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</strong>
+                Retirar: <strong>{new Date(dataLimiteRetirada).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</strong>
               </span>
             </div>
           )}
@@ -168,7 +168,7 @@ export const getEmprestimoColumns = ({
             <div className={styles.prazoRow}>
               <Calendar size={12} className="text-slate-400 shrink-0" />
               <span>
-                Devolver até: <strong>{new Date(dataPrevistaDevolucao).toLocaleDateString('pt-BR')}</strong>
+                Previsto: <strong>{new Date(dataPrevistaDevolucao).toLocaleDateString('pt-BR')}</strong>
               </span>
             </div>
           )}
@@ -200,7 +200,7 @@ export const getEmprestimoColumns = ({
 
           {temAvaria && (
             <span className="text-[10px] text-red-600 font-bold">
-              ⚠️ Avaria registrada
+              ⚠️ Avaria
             </span>
           )}
         </div>
@@ -215,40 +215,65 @@ export const getEmprestimoColumns = ({
 
       return (
         <div className={styles.actionsCell}>
-          {/* AÇÃO PRINCIPAL EM DESTAQUE */}
+          {/* AÇÕES DE FLUXO PARA 'RESERVADO': Retirar e Cancelar */}
           {item.status === 'RESERVADO' && (
-            <button
-              type="button"
-              className={styles.actionBtnRetirar}
-              onClick={() => onRetirar(item.id)}
-            >
-              <BookOpen size={13} />
-              <span>Retirar</span>
-            </button>
+            <>
+              <button
+                type="button"
+                className={styles.actionBtnRetirar}
+                onClick={() => onRetirar(item.id)}
+                title="Confirmar retirada do item"
+              >
+                <BookOpen size={12} />
+                <span>Retirar</span>
+              </button>
+              <button
+                type="button"
+                className={styles.actionBtnCancelar}
+                onClick={() => onCancelar(item.id)}
+                title="Cancelar reserva"
+              >
+                <Ban size={12} />
+                <span>Cancelar</span>
+              </button>
+            </>
           )}
 
+          {/* AÇÕES DE FLUXO PARA 'RETIRADO' OU 'ATRASADO': Devolver e RENOVAR NA BARRA */}
           {(item.status === 'RETIRADO' || item.status === 'ATRASADO') && (
-            <button
-              type="button"
-              className={styles.actionBtnDevolver}
-              onClick={() => onDevolver(item)}
-            >
-              <CheckCircle2 size={13} />
-              <span>Devolver</span>
-            </button>
+            <>
+              <button
+                type="button"
+                className={styles.actionBtnDevolver}
+                onClick={() => onDevolver(item)}
+                title="Registrar devolução do item"
+              >
+                <CheckCircle2 size={12} />
+                <span>Devolver</span>
+              </button>
+              <button
+                type="button"
+                className={styles.actionBtnRenovar}
+                onClick={() => onRenovar(item.id)}
+                title="Renovar prazo de empréstimo"
+              >
+                <RefreshCw size={12} />
+                <span>Renovar</span>
+              </button>
+            </>
           )}
 
-          {/* BOTÃO RÁPIDO DE HISTÓRICO / AUDITORIA */}
+          {/* AUDITORIA INSTANTÂNEA (HISTÓRICO ACID) */}
           <button
             type="button"
             className={`${styles.actionIconBtn} ${styles.actionIconBtnAudit}`}
             title="Trilha de Auditoria (Audit Log ACID)"
             onClick={() => onHistorico(item)}
           >
-            <History size={14} />
+            <History size={13} />
           </button>
 
-          {/* MENU DROPDOWN DE AÇÕES SECUNDÁRIAS */}
+          {/* MENU SUSPENSO DE GESTÃO DO REGISTRO */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -256,40 +281,24 @@ export const getEmprestimoColumns = ({
                 className={styles.actionIconBtn}
                 title="Mais Opções"
               >
-                <MoreHorizontal size={14} />
+                <MoreHorizontal size={13} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Ciclo de Vida (FSM)</DropdownMenuLabel>
-
-              {(item.status === 'RETIRADO' || item.status === 'ATRASADO') && (
-                <DropdownMenuItem onClick={() => onRenovar(item.id)}>
-                  <RefreshCw className="mr-2 h-4 w-4 text-amber-600" />
-                  Renovar Prazo
-                </DropdownMenuItem>
-              )}
-
-              {item.status === 'RESERVADO' && (
-                <DropdownMenuItem onClick={() => onCancelar(item.id)}>
-                  <Ban className="mr-2 h-4 w-4 text-zinc-600" />
-                  Cancelar Reserva
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuSeparator />
-
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuLabel>Gerenciamento</DropdownMenuLabel>
 
               <DropdownMenuItem onClick={() => onEdit(item)}>
-                <Edit2 className="mr-2 h-4 w-4 text-slate-600" />
+                <Edit2 className="mr-2 h-3.5 w-3.5 text-slate-600" />
                 Editar Dados
               </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => onDelete(item)}
               >
-                <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                <Trash2 className="mr-2 h-3.5 w-3.5 text-red-600" />
                 Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>
