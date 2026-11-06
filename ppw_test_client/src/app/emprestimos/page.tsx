@@ -8,8 +8,8 @@ export default async function EmprestimosPage() {
   const initialData = await getAllEmprestimos();
 
   return (
-    <main className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <main className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-5">
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div className="flex items-center gap-3">

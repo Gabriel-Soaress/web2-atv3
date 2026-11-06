@@ -1,16 +1,6 @@
 'use client';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   ColumnDef,
   flexRender,
@@ -42,6 +32,7 @@ import { EmprestimoDevolverDialog } from './emprestimoDevolverDialog';
 import { EmprestimoFormDialog } from './emprestimoFormDialog';
 import { EmprestimoHistoricoDialog } from './EmprestimoHistoricoDialog';
 import { getEmprestimoColumns } from './emprestimos-columns';
+import styles from './emprestimos.module.css';
 
 interface EmprestimosTableProps {
   initialData?: Emprestimo[];
@@ -58,7 +49,7 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  // Estados dos modais/dialogs
+  // Estados dos dialogs
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Emprestimo | null>(null);
 
@@ -86,7 +77,7 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
     loadData();
   }, [loadData]);
 
-  // Contagens para métricas e tabs
+  // Contadores para métricas
   const counts = useMemo(() => {
     const total = data.length;
     const reservado = data.filter((item) => item.status === 'RESERVADO').length;
@@ -204,288 +195,232 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
   });
 
   return (
-    <div className="space-y-5">
-      {/* Cards de Métricas e Resumo Rápido */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3.5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-medium">Reservas</span>
-            <Clock className="h-4 w-4 text-amber-500" />
+    <div className={styles.wrapper}>
+      {/* 1. Grade de Métricas */}
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricHeader}>
+            <span>Reservas</span>
+            <Clock size={16} className="text-amber-500" />
           </div>
-          <div className="text-xl font-bold text-slate-800">{counts.reservado}</div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Aguardando retirada</p>
+          <div className={styles.metricValue}>{counts.reservado}</div>
+          <div className={styles.metricSubtext}>Aguardando retirada</div>
         </div>
 
-        <div className="p-3.5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-medium">Em Uso (Ativos)</span>
-            <BookOpen className="h-4 w-4 text-blue-500" />
+        <div className={styles.metricCard}>
+          <div className={styles.metricHeader}>
+            <span>Em Aberto</span>
+            <BookOpen size={16} className="text-blue-500" />
           </div>
-          <div className="text-xl font-bold text-slate-800">{counts.ativos}</div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Com usuários</p>
+          <div className={styles.metricValue}>{counts.ativos}</div>
+          <div className={styles.metricSubtext}>Empréstimos em uso</div>
         </div>
 
         <div
-          className={`p-3.5 border rounded-xl shadow-xs ${
-            counts.atrasado > 0
-              ? 'bg-red-50/60 border-red-200 text-red-900'
-              : 'bg-white border-slate-200/80'
+          className={`${styles.metricCard} ${
+            counts.atrasado > 0 ? styles.metricCardAlert : ''
           }`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium">Atrasados</span>
+          <div className={styles.metricHeader}>
+            <span>Atrasados</span>
             <AlertTriangle
-              className={`h-4 w-4 ${counts.atrasado > 0 ? 'text-red-600 animate-bounce' : 'text-slate-400'}`}
+              size={16}
+              className={counts.atrasado > 0 ? 'text-red-600' : 'text-slate-400'}
             />
           </div>
-          <div className="text-xl font-bold">{counts.atrasado}</div>
-          <p className="text-[11px] opacity-80 mt-0.5">
+          <div className={styles.metricValue}>{counts.atrasado}</div>
+          <div className={styles.metricSubtext}>
             {counts.totalMultas > 0
-              ? `Multas acumuladas: R$ ${counts.totalMultas.toFixed(2)}`
+              ? `Multas: R$ ${counts.totalMultas.toFixed(2)}`
               : 'Nenhum atraso'}
-          </p>
+          </div>
         </div>
 
-        <div className="p-3.5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-medium">Finalizados</span>
-            <BookCheck className="h-4 w-4 text-emerald-500" />
+        <div className={styles.metricCard}>
+          <div className={styles.metricHeader}>
+            <span>Finalizados</span>
+            <BookCheck size={16} className="text-emerald-500" />
           </div>
-          <div className="text-xl font-bold text-slate-800">{counts.finalizado}</div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Devolvidos / Expirados</p>
+          <div className={styles.metricValue}>{counts.finalizado}</div>
+          <div className={styles.metricSubtext}>Devolvidos / Expirados</div>
         </div>
       </div>
 
-      {/* Alerta de Feedback com suporte a erros de domínio (HTTP 422) */}
+      {/* 2. Feedback de Operações e Bloqueios FSM */}
       {feedback && (
         <Alert
           variant={feedback.type === 'error' ? 'destructive' : 'default'}
-          className={`transition-all duration-200 ${
+          className={
             feedback.type === 'error'
-              ? 'bg-red-50 border-red-300 text-red-900'
-              : 'bg-emerald-50 border-emerald-300 text-emerald-900'
-          }`}
+              ? 'bg-red-50 border-red-200 text-red-950'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+          }
         >
           {feedback.type === 'error' ? (
             <ShieldAlert className="h-4 w-4 text-red-600" />
           ) : (
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
           )}
-          <AlertTitle className="font-semibold text-sm">
-            {feedback.type === 'error' ? 'Bloqueio de Regra de Negócio (FSM)' : 'Operação Realizada'}
+          <AlertTitle className="text-xs font-semibold">
+            {feedback.type === 'error' ? 'Bloqueio de Regra de Negócio (FSM)' : 'Sucesso'}
           </AlertTitle>
-          <AlertDescription className="text-xs mt-0.5">{feedback.message}</AlertDescription>
+          <AlertDescription className="text-xs">{feedback.message}</AlertDescription>
         </Alert>
       )}
 
-      {/* Barra de Filtros e Ações Principais */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-        {/* Abas / Pills de Filtragem por Estado */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+      {/* 3. Barra de Filtros, Pesquisa e Ações */}
+      <div className={styles.toolbar}>
+        <div className={styles.filterTabs}>
           <button
             type="button"
             onClick={() => setActiveTab('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'ALL'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+            className={`${styles.filterTabBtn} ${
+              activeTab === 'ALL' ? styles.filterTabBtnActive : ''
             }`}
           >
-            Todos
-            <Badge
-              variant="secondary"
-              className={`text-[10px] px-1.5 py-0 h-4 ${
-                activeTab === 'ALL' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-700'
-              }`}
-            >
-              {counts.total}
-            </Badge>
+            <span>Todos</span>
+            <span className={styles.tabBadge}>{counts.total}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('RESERVADO')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'RESERVADO'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+            className={`${styles.filterTabBtn} ${
+              activeTab === 'RESERVADO' ? styles.filterTabBtnActive : ''
             }`}
           >
-            Reservados
-            <Badge
-              variant="secondary"
-              className={`text-[10px] px-1.5 py-0 h-4 ${
-                activeTab === 'RESERVADO' ? 'bg-amber-700 text-white' : 'bg-amber-100 text-amber-800'
-              }`}
-            >
-              {counts.reservado}
-            </Badge>
+            <span>Reservados</span>
+            <span className={styles.tabBadge}>{counts.reservado}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('ATIVOS')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'ATIVOS'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+            className={`${styles.filterTabBtn} ${
+              activeTab === 'ATIVOS' ? styles.filterTabBtnActive : ''
             }`}
           >
-            Em Aberto
-            <Badge
-              variant="secondary"
-              className={`text-[10px] px-1.5 py-0 h-4 ${
-                activeTab === 'ATIVOS' ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-800'
-              }`}
-            >
-              {counts.ativos}
-            </Badge>
+            <span>Em Aberto</span>
+            <span className={styles.tabBadge}>{counts.ativos}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('ATRASADO')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'ATRASADO'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+            className={`${styles.filterTabBtn} ${
+              activeTab === 'ATRASADO' ? styles.filterTabBtnActive : ''
             }`}
           >
-            Atrasados
-            <Badge
-              variant="secondary"
-              className={`text-[10px] px-1.5 py-0 h-4 ${
-                activeTab === 'ATRASADO' ? 'bg-red-700 text-white' : 'bg-red-100 text-red-800'
-              }`}
-            >
-              {counts.atrasado}
-            </Badge>
+            <span>Atrasados</span>
+            <span className={styles.tabBadge}>{counts.atrasado}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('FINALIZADO')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'FINALIZADO'
-                ? 'bg-emerald-700 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+            className={`${styles.filterTabBtn} ${
+              activeTab === 'FINALIZADO' ? styles.filterTabBtnActive : ''
             }`}
           >
-            Finalizados
-            <Badge
-              variant="secondary"
-              className={`text-[10px] px-1.5 py-0 h-4 ${
-                activeTab === 'FINALIZADO'
-                  ? 'bg-emerald-800 text-white'
-                  : 'bg-emerald-100 text-emerald-800'
-              }`}
-            >
-              {counts.finalizado}
-            </Badge>
+            <span>Finalizados</span>
+            <span className={styles.tabBadge}>{counts.finalizado}</span>
           </button>
         </div>
 
-        {/* Campo de Busca e Botões de Ação */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className={styles.toolbarRight}>
+          <div className={styles.searchBox}>
+            <Search className={styles.searchIcon} />
             <input
               type="text"
               placeholder="Buscar livro, usuário..."
               value={globalFilter ?? ''}
               onChange={(e) => setGlobalFilter(e.target.value)}
-              className="h-9 w-full pl-8 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-xs shadow-none focus-visible:bg-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+              className={styles.searchInput}
             />
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
             onClick={loadData}
             disabled={isLoading}
-            className="h-9 px-2.5 text-xs text-slate-700 border-slate-200 hover:bg-slate-50"
-            title="Atualizar lista"
+            className={styles.btnOutline}
+            title="Atualizar dados"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          </button>
 
-          <Button
+          <button
+            type="button"
             onClick={handleOpenCreate}
-            size="sm"
-            className="h-9 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-xs gap-1.5"
+            className={styles.btnPrimary}
           >
-            <PlusCircle className="h-3.5 w-3.5" />
+            <PlusCircle size={14} />
             <span>Novo Registro</span>
-          </Button>
+          </button>
         </div>
       </div>
 
-      {/* Tabela TanStack com visual limpo */}
-      <div className="border border-slate-200 rounded-xl bg-white shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50/75 border-b border-slate-200">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className="text-xs font-bold uppercase tracking-wider text-slate-500 py-3"
-                    >
+      {/* 4. Tabela com Larguras Fixas Sem Scroll Horizontal */}
+      <div className={styles.tableCard}>
+        <table className={styles.customTable}>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  let colClass = styles.colItem;
+                  if (header.id === 'status') colClass = styles.colStatus;
+                  if (header.id === 'datas') colClass = styles.colPrazos;
+                  if (header.id === 'actions') colClass = styles.colAcoes;
+
+                  return (
+                    <th key={header.id} className={colClass}>
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
 
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="hover:bg-slate-50/70 border-b border-slate-100 transition-colors"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3">
+          <tbody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <tr key={row.id}>
+                  {row.getVisibleCells().map((cell) => {
+                    let colClass = styles.colItem;
+                    if (cell.column.id === 'status') colClass = styles.colStatus;
+                    if (cell.column.id === 'datas') colClass = styles.colPrazos;
+                    if (cell.column.id === 'actions') colClass = styles.colAcoes;
+
+                    return (
+                      <td key={cell.id} className={colClass}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-36 text-center text-muted-foreground text-sm"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <p className="font-medium text-slate-600">
-                        Nenhum registro encontrado para este filtro.
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setActiveTab('ALL');
-                          setGlobalFilter('');
-                        }}
-                        className="text-xs"
-                      >
-                        Limpar Filtros
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length} className={styles.emptyState}>
+                  <div className={styles.emptyStateTitle}>
+                    Nenhum empréstimo encontrado
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {globalFilter
+                      ? 'Nenhum resultado corresponde à sua pesquisa.'
+                      : 'Não há itens nesta categoria.'}
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Dialog para Incluir / Alterar */}
+      {/* Dialogs */}
       <EmprestimoFormDialog
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -501,7 +436,6 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
         }}
       />
 
-      {/* Dialog para Excluir */}
       <EmprestimoDeleteDialog
         isOpen={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
@@ -512,7 +446,6 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
         }}
       />
 
-      {/* Dialog para Devolver */}
       <EmprestimoDevolverDialog
         isOpen={isDevolverOpen}
         onOpenChange={setIsDevolverOpen}
@@ -523,7 +456,6 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
         }}
       />
 
-      {/* Dialog para Trilha de Auditoria (Audit Log) */}
       <EmprestimoHistoricoDialog
         isOpen={isHistoricoOpen}
         onOpenChange={setIsHistoricoOpen}
