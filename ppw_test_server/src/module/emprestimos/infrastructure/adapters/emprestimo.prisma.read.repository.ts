@@ -4,7 +4,9 @@ import { EmprestimoEntity } from '../../domain/entity/emprestimo.entity';
 import {
   EmprestimoReadRepository,
   HistoricoItemRecord,
+  StatusBloqueioUsuario,
 } from '../../domain/ports/emprestimo.read.repository';
+import { StatusEmprestimoEnum } from '../../domain/value-objects/status-emprestimo.value-object';
 import { EmprestimoMappers } from '../mappers/emprestimo.mappers';
 
 @Injectable()
@@ -41,5 +43,67 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
       justificativa: log.justificativa,
       timestamp: log.timestamp,
     }));
+  }
+
+  /**
+   * Regra de Alta Complexidade: Verifica se o usuário possui pendências de atraso ativas.
+   * Se possuir itens ATRASADOS ou RETIRADOS com data de devolução vencida, bloqueia novas reservas.
+   */
+  async verificarBloqueioUsuario(usuarioNome: string): Promise<StatusBloqueioUsuario> {
+    const agora = new Date();
+    const pendencias = await this.prisma.emprestimo.findMany({
+      where: {
+        usuarioNome: {
+          equals: usuarioNome.trim(),
+        },
+        OR: [
+          { status: StatusEmprestimoEnum.ATRASADO },
+          {
+            status: StatusEmprestimoEnum.RETIRADO,
+            dataPrevistaDevolucao: {
+              lt: agora,
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        tituloItem: true,
+        dataPrevistaDevolucao: true,
+      },
+    });
+
+    if (pendencias.length > 0) {
+      const itens = pendencias.map((p) => p.tituloItem).join(', ');
+      return {
+        bloqueado: true,
+        motivo: `Usuário '${usuarioNome}' possui ${pendencias.length} item(ns) em atraso pendente(s): [${itens}]. Novas reservas bloqueadas até a devolução e regularização.`,
+        emprestimosPendentes: pendencias.map((p) => p.id),
+      };
+    }
+
+    return { bloqueado: false };
+  }
+
+  /**
+   * Concorrência / Double-Booking: Verifica se um exemplar já está alocado.
+   */
+  async verificarDisponibilidadeItem(tituloItem: string): Promise<boolean> {
+    const ativo = await this.prisma.emprestimo.findFirst({
+      where: {
+        tituloItem: {
+          equals: tituloItem.trim(),
+        },
+        status: {
+          in: [
+            StatusEmprestimoEnum.RESERVADO,
+            StatusEmprestimoEnum.RETIRADO,
+            StatusEmprestimoEnum.ATRASADO,
+          ],
+        },
+      },
+    });
+
+    return !ativo;
   }
 }

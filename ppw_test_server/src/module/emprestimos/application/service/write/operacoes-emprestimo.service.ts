@@ -16,6 +16,7 @@ import {
   EmprestimoWriteRepository,
 } from '../../../domain/ports/emprestimo.write.repository';
 import { EmprestimoMappers } from '../../../infrastructure/mappers/emprestimo.mappers';
+import { CalculadoraMultaService } from '../../../domain/services/calculadora-multa.service';
 import { OperacoesEmprestimoUseCase } from '../../use-case/write/operacoes-emprestimo.use-case';
 
 @Injectable()
@@ -35,6 +36,9 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
   }
 
   async retirar(id: string): Promise<EmprestimoResponse> {
+    // Avalia expirações lazy antes de tentar retirar
+    await this.writeRepo.processarExpiracoesLazy();
+
     const emprestimo = await this.readRepo.findById(id);
     if (!emprestimo) {
       throw new NotFoundException('Empréstimo não encontrado.');
@@ -48,7 +52,8 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
 
     const updated = await this.writeRepo.update(emprestimo, {
       autorAcao: emprestimo.props.usuarioNome,
-      justificativa: 'Retirada do item realizada com sucesso. Prazo de devolução definido para 7 dias.',
+      justificativa:
+        'Retirada do item realizada com sucesso. Prazo de devolução definido para 7 dias.',
     });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }
@@ -78,15 +83,22 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
       throw new NotFoundException('Empréstimo não encontrado.');
     }
 
+    const agora = new Date();
+    const calculo = CalculadoraMultaService.calcular(emprestimo.props.dataPrevistaDevolucao, agora);
+
     try {
       emprestimo.registrarDevolucao(request.temAvaria, request.descricaoAvaria);
     } catch (err: any) {
       this.tratarErroDominio(err);
     }
 
-    const justificativa = request.temAvaria
-      ? `Devolução registrada com avaria constatada: "${request.descricaoAvaria || 'Sem descrição'}"`
+    let justificativa = request.temAvaria
+      ? `Devolução com avaria constatada: "${request.descricaoAvaria || 'Sem descrição'}"`
       : 'Devolução regular concluída sem avarias.';
+
+    if (calculo.diasAtraso > 0) {
+      justificativa += ` | Multa progressiva aplicada: R$ ${calculo.valorMulta.toFixed(2)} (${calculo.diasAtraso} dias de atraso).`;
+    }
 
     const updated = await this.writeRepo.update(emprestimo, {
       autorAcao: emprestimo.props.usuarioNome,
@@ -128,7 +140,7 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
 
     const updated = await this.writeRepo.update(emprestimo, {
       autorAcao: 'SISTEMA',
-      justificativa: 'Item marcado com status ATRASADO por superação do prazo de devolução.',
+      justificativa: `Item marcado com status ATRASADO por superação do prazo de devolução. Multa estimada: R$ ${emprestimo.props.valorMulta.toFixed(2)}.`,
     });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }

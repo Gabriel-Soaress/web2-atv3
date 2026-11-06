@@ -12,8 +12,16 @@ export interface HistoricoItemRecord {
   timestamp: Date;
 }
 
+export interface StatusBloqueioUsuario {
+  bloqueado: boolean;
+  motivo?: string;
+  emprestimosPendentes?: string[];
+}
+
 export interface EmprestimoReadRepository {
   findAll(): Promise<EmprestimoEntity[]>;
   findById(id: string): Promise<EmprestimoEntity | null>;
   findHistorico(emprestimoId: string): Promise<HistoricoItemRecord[]>;
+  verificarBloqueioUsuario(usuarioNome: string): Promise<StatusBloqueioUsuario>;
+  verificarDisponibilidadeItem(tituloItem: string): Promise<boolean>;
 }

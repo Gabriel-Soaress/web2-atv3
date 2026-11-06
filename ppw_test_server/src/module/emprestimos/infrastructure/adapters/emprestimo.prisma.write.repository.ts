@@ -5,6 +5,7 @@ import {
   AuditOptions,
   EmprestimoWriteRepository,
 } from '../../domain/ports/emprestimo.write.repository';
+import { StatusEmprestimoEnum } from '../../domain/value-objects/status-emprestimo.value-object';
 import { EmprestimoMappers } from '../mappers/emprestimo.mappers';
 
 @Injectable()
@@ -40,8 +41,6 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
 
   /**
    * Atualização com Audit Log atômico via Transação ACID ($transaction).
-   * Se o status for alterado, o histórico é registrado obrigatoriamente.
-   * Se a gravação do histórico falhar, o rollback desfaz a alteração de status.
    */
   async update(
     emprestimo: EmprestimoEntity,
@@ -81,6 +80,53 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
   async delete(id: string): Promise<void> {
     await this.prisma.emprestimo.delete({
       where: { id },
+    });
+  }
+
+  /**
+   * Padrão Lazy Expiration (Just-In-Time Evaluation):
+   * Avalia atômica e preguiçosamente todas as reservas cujo prazo limite venceu,
+   * transicionando-as para EXPIRADO e gerando os respectivos logs de auditoria
+   * sem depender de nenhum cron job externo ou daemon em background.
+   */
+  async processarExpiracoesLazy(): Promise<number> {
+    const agora = new Date();
+
+    return await this.prisma.$transaction(async (tx) => {
+      const reservasVencidas = await tx.emprestimo.findMany({
+        where: {
+          status: StatusEmprestimoEnum.RESERVADO,
+          dataLimiteRetirada: {
+            lt: agora,
+            not: null,
+          },
+        },
+      });
+
+      if (reservasVencidas.length === 0) {
+        return 0;
+      }
+
+      for (const item of reservasVencidas) {
+        await tx.emprestimo.update({
+          where: { id: item.id },
+          data: { status: StatusEmprestimoEnum.EXPIRADO },
+        });
+
+        await tx.historicoEmprestimo.create({
+          data: {
+            emprestimoId: item.id,
+            statusAnterior: StatusEmprestimoEnum.RESERVADO,
+            novoStatus: StatusEmprestimoEnum.EXPIRADO,
+            autorAcao: 'SISTEMA_LAZY_EVALUATION',
+            justificativa: `Reserva expirada automaticamente por atingir o prazo limite de retirada (${new Date(
+              item.dataLimiteRetirada!,
+            ).toLocaleString('pt-BR')}) - Padrão Lazy Evaluation.`,
+          },
+        });
+      }
+
+      return reservasVencidas.length;
     });
   }
 }

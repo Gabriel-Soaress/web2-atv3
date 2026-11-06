@@ -4,6 +4,7 @@ export class EmprestimoResponse {
   tipoItem!: string;
   usuarioNome!: string;
   dataReserva!: Date;
+  dataLimiteRetirada?: Date | null;
   dataRetirada?: Date | null;
   dataPrevistaDevolucao?: Date | null;
   dataDevolucao?: Date | null;
@@ -11,6 +12,8 @@ export class EmprestimoResponse {
   renovacoesCount!: number;
   temAvaria!: boolean;
   descricaoAvaria?: string | null;
+  diasAtraso!: number;
+  valorMulta!: number;
   createdAt?: Date;
   updatedAt?: Date | null;
 

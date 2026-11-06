@@ -11,4 +11,5 @@ export interface EmprestimoWriteRepository {
   create(emprestimo: EmprestimoEntity, options?: AuditOptions): Promise<EmprestimoEntity>;
   update(emprestimo: EmprestimoEntity, options?: AuditOptions): Promise<EmprestimoEntity>;
   delete(id: string): Promise<void>;
+  processarExpiracoesLazy(): Promise<number>;
 }
