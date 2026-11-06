@@ -46,7 +46,10 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
       this.tratarErroDominio(err);
     }
 
-    const updated = await this.writeRepo.update(emprestimo);
+    const updated = await this.writeRepo.update(emprestimo, {
+      autorAcao: emprestimo.props.usuarioNome,
+      justificativa: 'Retirada do item realizada com sucesso. Prazo de devolução definido para 7 dias.',
+    });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }
 
@@ -62,7 +65,10 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
       this.tratarErroDominio(err);
     }
 
-    const updated = await this.writeRepo.update(emprestimo);
+    const updated = await this.writeRepo.update(emprestimo, {
+      autorAcao: emprestimo.props.usuarioNome,
+      justificativa: `Renovação de prazo concedida. Total de renovações: ${emprestimo.props.renovacoesCount}.`,
+    });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }
 
@@ -78,7 +84,14 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
       this.tratarErroDominio(err);
     }
 
-    const updated = await this.writeRepo.update(emprestimo);
+    const justificativa = request.temAvaria
+      ? `Devolução registrada com avaria constatada: "${request.descricaoAvaria || 'Sem descrição'}"`
+      : 'Devolução regular concluída sem avarias.';
+
+    const updated = await this.writeRepo.update(emprestimo, {
+      autorAcao: emprestimo.props.usuarioNome,
+      justificativa,
+    });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }
 
@@ -94,7 +107,10 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
       this.tratarErroDominio(err);
     }
 
-    const updated = await this.writeRepo.update(emprestimo);
+    const updated = await this.writeRepo.update(emprestimo, {
+      autorAcao: emprestimo.props.usuarioNome,
+      justificativa: 'Reserva cancelada pelo solicitante ou operador.',
+    });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }
 
@@ -110,7 +126,10 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
       this.tratarErroDominio(err);
     }
 
-    const updated = await this.writeRepo.update(emprestimo);
+    const updated = await this.writeRepo.update(emprestimo, {
+      autorAcao: 'SISTEMA',
+      justificativa: 'Item marcado com status ATRASADO por superação do prazo de devolução.',
+    });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }
 }

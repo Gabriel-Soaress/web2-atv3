@@ -9,11 +9,13 @@ import { CRIAR_RESERVA_USE_CASE } from './application/use-case/write/criar-reser
 import { ATUALIZAR_EMPRESTIMO_USE_CASE } from './application/use-case/write/atualizar-emprestimo.use-case';
 import { EXCLUIR_EMPRESTIMO_USE_CASE } from './application/use-case/write/excluir-emprestimo.use-case';
 import { OPERACOES_EMPRESTIMO_USE_CASE } from './application/use-case/write/operacoes-emprestimo.use-case';
+import { FIND_HISTORICO_EMPRESTIMO_USE_CASE } from './application/use-case/read/find-historico-emprestimo.use-case';
 import { FindAllEmprestimosService } from './application/service/read/find-all-emprestimos.service';
 import { CriarReservaService } from './application/service/write/criar-reserva.service';
 import { AtualizarEmprestimoService } from './application/service/write/atualizar-emprestimo.service';
 import { ExcluirEmprestimoService } from './application/service/write/excluir-emprestimo.service';
 import { OperacoesEmprestimoService } from './application/service/write/operacoes-emprestimo.service';
+import { FindHistoricoEmprestimoService } from './application/service/read/find-historico-emprestimo.service';
 
 const repositoriesProviders = [
   {
@@ -30,6 +32,10 @@ const useCasesProviders = [
   {
     provide: FIND_ALL_EMPRESTIMOS_USE_CASE,
     useClass: FindAllEmprestimosService,
+  },
+  {
+    provide: FIND_HISTORICO_EMPRESTIMO_USE_CASE,
+    useClass: FindHistoricoEmprestimoService,
   },
   {
     provide: CRIAR_RESERVA_USE_CASE,
@@ -54,6 +60,7 @@ const useCasesProviders = [
   providers: [...repositoriesProviders, ...useCasesProviders],
   exports: [
     FIND_ALL_EMPRESTIMOS_USE_CASE,
+    FIND_HISTORICO_EMPRESTIMO_USE_CASE,
     CRIAR_RESERVA_USE_CASE,
     ATUALIZAR_EMPRESTIMO_USE_CASE,
     EXCLUIR_EMPRESTIMO_USE_CASE,

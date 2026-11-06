@@ -8,20 +8,37 @@ datasource db {
 }
 
 model Emprestimo {
-  id                    String    @id @default(uuid())
-  tituloItem            String    @map("titulo_item")
-  tipoItem              String    @default("LIVRO") @map("tipo_item")
-  usuarioNome           String    @map("usuario_nome")
-  dataReserva           DateTime  @default(now()) @map("data_reserva")
-  dataRetirada          DateTime? @map("data_retirada")
-  dataPrevistaDevolucao DateTime? @map("data_prevista_devolucao")
-  dataDevolucao         DateTime? @map("data_devolucao")
-  status                String    @default("RESERVADO")
-  renovacoesCount       Int       @default(0) @map("renovacoes_count")
-  temAvaria             Boolean   @default(false) @map("tem_avaria")
-  descricaoAvaria       String?   @map("descricao_avaria")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime? @updatedAt @map("updated_at")
+  id                    String                @id @default(uuid())
+  tituloItem            String                @map("titulo_item")
+  tipoItem              String                @default("LIVRO") @map("tipo_item")
+  usuarioNome           String                @map("usuario_nome")
+  dataReserva           DateTime              @default(now()) @map("data_reserva")
+  dataRetirada          DateTime?             @map("data_retirada")
+  dataPrevistaDevolucao DateTime?             @map("data_prevista_devolucao")
+  dataDevolucao         DateTime?             @map("data_devolucao")
+  status                String                @default("RESERVADO")
+  renovacoesCount       Int                   @default(0) @map("renovacoes_count")
+  temAvaria             Boolean               @default(false) @map("tem_avaria")
+  descricaoAvaria       String?               @map("descricao_avaria")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime?             @updatedAt @map("updated_at")
+
+  historico             HistoricoEmprestimo[]
 
   @@map("web2_A1_emprestimos")
+}
+
+model HistoricoEmprestimo {
+  id             String     @id @default(uuid())
+  emprestimoId   String     @map("emprestimo_id")
+  statusAnterior String     @map("status_anterior")
+  novoStatus     String     @map("novo_status")
+  autorAcao      String     @default("SISTEMA") @map("autor_acao")
+  justificativa  String?    @map("justificativa")
+  timestamp      DateTime   @default(now()) @map("timestamp")
+
+  emprestimo     Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+
+  @@index([emprestimoId])
+  @@map("web2_A3_historico_emprestimos")
 }

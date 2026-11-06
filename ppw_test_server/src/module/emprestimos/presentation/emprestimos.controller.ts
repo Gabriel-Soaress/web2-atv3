@@ -16,11 +16,18 @@ import {
   CriarReservaRequest,
   RegistrarDevolucaoRequest,
 } from '../application/dto/emprestimo.request.dto';
-import { EmprestimoResponse } from '../application/dto/emprestimo.response.dto';
+import {
+  EmprestimoResponse,
+  HistoricoResponse,
+} from '../application/dto/emprestimo.response.dto';
 import {
   FIND_ALL_EMPRESTIMOS_USE_CASE,
   FindAllEmprestimosUseCase,
 } from '../application/use-case/read/find-all-emprestimos.use-case';
+import {
+  FIND_HISTORICO_EMPRESTIMO_USE_CASE,
+  FindHistoricoEmprestimoUseCase,
+} from '../application/use-case/read/find-historico-emprestimo.use-case';
 import {
   CRIAR_RESERVA_USE_CASE,
   CriarReservaUseCase,
@@ -43,6 +50,8 @@ export class EmprestimosController {
   constructor(
     @Inject(FIND_ALL_EMPRESTIMOS_USE_CASE)
     private readonly findAllUseCase: FindAllEmprestimosUseCase,
+    @Inject(FIND_HISTORICO_EMPRESTIMO_USE_CASE)
+    private readonly findHistoricoUseCase: FindHistoricoEmprestimoUseCase,
     @Inject(CRIAR_RESERVA_USE_CASE)
     private readonly criarReservaUseCase: CriarReservaUseCase,
     @Inject(ATUALIZAR_EMPRESTIMO_USE_CASE)
@@ -57,6 +66,12 @@ export class EmprestimosController {
   @Get()
   async listar(): Promise<EmprestimoResponse[]> {
     return this.findAllUseCase.execute();
+  }
+
+  // 1.1 GET /emprestimos/:id/historico -> Consultar Trilha de Auditoria (Audit Log)
+  @Get(':id/historico')
+  async obterHistorico(@Param('id') id: string): Promise<HistoricoResponse[]> {
+    return this.findHistoricoUseCase.execute(id);
   }
 
   // 2. POST /emprestimos -> Criar reserva
