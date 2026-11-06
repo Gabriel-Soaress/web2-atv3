@@ -3,7 +3,18 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ColumnDef } from '@tanstack/react-table';
-import { BookOpen, CheckCircle, Clock, Edit, History, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Ban,
+  BookOpen,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Edit,
+  History,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
 import { Emprestimo } from '../type/emprestimo.type';
 
 interface EmprestimoColumnsProps {
@@ -12,6 +23,8 @@ interface EmprestimoColumnsProps {
   onRetirar: (id: string) => void;
   onRenovar: (id: string) => void;
   onDevolver: (item: Emprestimo) => void;
+  onCancelar: (id: string) => void;
+  onHistorico: (item: Emprestimo) => void;
 }
 
 export const getEmprestimoColumns = ({
@@ -20,6 +33,8 @@ export const getEmprestimoColumns = ({
   onRetirar,
   onRenovar,
   onDevolver,
+  onCancelar,
+  onHistorico,
 }: EmprestimoColumnsProps): ColumnDef<Emprestimo>[] => [
   {
     accessorKey: 'tituloItem',
@@ -38,18 +53,52 @@ export const getEmprestimoColumns = ({
   },
   {
     accessorKey: 'status',
-    header: 'Status',
+    header: 'Status (FSM)',
     cell: ({ row }) => {
       const status = row.original.status;
       switch (status) {
         case 'RESERVADO':
-          return <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">Reservado</Badge>;
+          return (
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
+              Reservado
+            </Badge>
+          );
         case 'RETIRADO':
-          return <Badge variant="default" className="bg-blue-600 text-white">Retirado</Badge>;
+          return (
+            <Badge variant="default" className="bg-blue-600 text-white">
+              Retirado
+            </Badge>
+          );
         case 'ATRASADO':
-          return <Badge variant="destructive">Atrasado</Badge>;
+          return (
+            <Badge variant="destructive" className="bg-red-600 text-white animate-pulse">
+              Atrasado
+            </Badge>
+          );
         case 'DEVOLVIDO':
-          return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300">Devolvido</Badge>;
+          return (
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300">
+              Devolvido
+            </Badge>
+          );
+        case 'DEVOLVIDO_COM_MULTA':
+          return (
+            <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-300">
+              Devolvido c/ Multa
+            </Badge>
+          );
+        case 'EXPIRADO':
+          return (
+            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300">
+              Expirado (Lazy)
+            </Badge>
+          );
+        case 'CANCELADO':
+          return (
+            <Badge variant="outline" className="bg-zinc-100 text-zinc-500 border-zinc-300">
+              Cancelado
+            </Badge>
+          );
         default:
           return <Badge variant="outline">{status}</Badge>;
       }
@@ -57,11 +106,26 @@ export const getEmprestimoColumns = ({
   },
   {
     accessorKey: 'datas',
-    header: 'Prazos / Datas',
+    header: 'Prazos / Penalidades',
     cell: ({ row }) => {
-      const { dataPrevistaDevolucao, dataDevolucao, renovacoesCount, temAvaria } = row.original;
+      const {
+        dataLimiteRetirada,
+        dataPrevistaDevolucao,
+        dataDevolucao,
+        renovacoesCount,
+        temAvaria,
+        status,
+        valorMulta,
+        diasAtraso,
+      } = row.original;
+
       return (
         <div className="text-xs space-y-0.5">
+          {status === 'RESERVADO' && dataLimiteRetirada && (
+            <div className="text-amber-700 font-medium">
+              Limite retirada: {new Date(dataLimiteRetirada).toLocaleString('pt-BR')}
+            </div>
+          )}
           {dataPrevistaDevolucao && (
             <div className="text-muted-foreground">
               Previsto: {new Date(dataPrevistaDevolucao).toLocaleDateString('pt-BR')}
@@ -75,6 +139,12 @@ export const getEmprestimoColumns = ({
           {renovacoesCount > 0 && (
             <div className="text-blue-600">Renovações: {renovacoesCount}</div>
           )}
+          {valorMulta !== undefined && valorMulta > 0 && (
+            <div className="text-rose-600 font-bold flex items-center gap-0.5">
+              <DollarSign className="h-3 w-3" />
+              Multa: R$ {Number(valorMulta).toFixed(2)} ({diasAtraso}d atraso)
+            </div>
+          )}
           {temAvaria && <div className="text-red-600 font-semibold">⚠️ Com avaria</div>}
         </div>
       );
@@ -82,7 +152,7 @@ export const getEmprestimoColumns = ({
   },
   {
     id: 'actions',
-    header: () => <span className="text-right block">Ações</span>,
+    header: () => <span className="text-right block">Ações Semânticas</span>,
     cell: ({ row }) => {
       const item = row.original;
       return (
@@ -99,6 +169,18 @@ export const getEmprestimoColumns = ({
             </Button>
           )}
 
+          {/* Ação de fluxo: Cancelar Reserva */}
+          {item.status === 'RESERVADO' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+              onClick={() => onCancelar(item.id)}
+            >
+              <Ban className="h-3.5 w-3.5 mr-1" /> Cancelar
+            </Button>
+          )}
+
           {/* Ação de fluxo: Renovar */}
           {(item.status === 'RETIRADO' || item.status === 'ATRASADO') && (
             <Button
@@ -107,7 +189,7 @@ export const getEmprestimoColumns = ({
               className="h-8 text-xs bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
               onClick={() => onRenovar(item.id)}
             >
-              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Renovar (+7d)
+              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Renovar
             </Button>
           )}
 
@@ -122,6 +204,17 @@ export const getEmprestimoColumns = ({
               <CheckCircle className="h-3.5 w-3.5 mr-1" /> Devolver
             </Button>
           )}
+
+          {/* Auditoria / Histórico */}
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-8 w-8 text-indigo-700 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"
+            title="Ver Trilha de Auditoria (Audit Log)"
+            onClick={() => onHistorico(item)}
+          >
+            <History className="h-3.5 w-3.5" />
+          </Button>
 
           {/* Alterar (Editar) */}
           <Button
