@@ -1,5 +1,6 @@
 import { BaseEntity, DefaulTimeStampsProps } from '../../../../shared/domain/entity/base.entity';
 import { StatusEmprestimo, StatusEmprestimoEnum } from '../value-objects/status-emprestimo.value-object';
+import { CalculadoraMultaService } from '../services/calculadora-multa.service';
 
 export type EmprestimoProps = {
   id?: string;
@@ -7,6 +8,7 @@ export type EmprestimoProps = {
   tipoItem: string;
   usuarioNome: string;
   dataReserva: Date;
+  dataLimiteRetirada?: Date | null;
   dataRetirada?: Date | null;
   dataPrevistaDevolucao?: Date | null;
   dataDevolucao?: Date | null;
@@ -14,6 +16,8 @@ export type EmprestimoProps = {
   renovacoesCount: number;
   temAvaria: boolean;
   descricaoAvaria?: string | null;
+  diasAtraso: number;
+  valorMulta: number;
 } & DefaulTimeStampsProps;
 
 export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
@@ -26,22 +30,30 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     tipoItem: string,
     usuarioNome: string,
     id?: string,
+    ttlHorasRetirada: number = 48,
   ): EmprestimoEntity {
     if (!tituloItem?.trim() || !tipoItem?.trim() || !usuarioNome?.trim()) {
       throw new Error('Todos os campos da reserva são obrigatórios.');
     }
+
+    const agora = new Date();
+    // Prazo limite para retirada: 48 horas a partir da reserva
+    const dataLimite = new Date(agora.getTime() + ttlHorasRetirada * 60 * 60 * 1000);
 
     return new EmprestimoEntity({
       id,
       tituloItem: tituloItem.trim(),
       tipoItem: tipoItem.trim().toUpperCase(),
       usuarioNome: usuarioNome.trim(),
-      dataReserva: new Date(),
+      dataReserva: agora,
+      dataLimiteRetirada: dataLimite,
       status: StatusEmprestimo.reservado(),
       renovacoesCount: 0,
       temAvaria: false,
       descricaoAvaria: null,
-      createdAt: new Date(),
+      diasAtraso: 0,
+      valorMulta: 0,
+      createdAt: agora,
     });
   }
 
@@ -56,12 +68,18 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
   /**
    * Evento: registrarRetirada()
    * Transição: RESERVADO -> RETIRADO
+   * Valida se o prazo limite de retirada não expirou.
    */
   registrarRetirada(): void {
-    // Guarda de transição da FSM
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.RETIRADO);
 
     const agora = new Date();
+    if (this.props.dataLimiteRetirada && agora > new Date(this.props.dataLimiteRetirada)) {
+      throw new Error(
+        `Prazo limite de retirada expirado em ${new Date(this.props.dataLimiteRetirada).toLocaleString('pt-BR')}. A reserva não pode mais ser retirada.`,
+      );
+    }
+
     const dataPrevista = new Date();
     dataPrevista.setDate(agora.getDate() + 7);
 
@@ -73,7 +91,7 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
 
   /**
    * Evento: renovarPrazo()
-   * Transição: Válido para RETIRADO ou ATRASADO (regularização)
+   * Transição: Válido para RETIRADO ou ATRASADO
    */
   renovarPrazo(): void {
     if (!this.props.status.isRetirado() && !this.props.status.isAtrasado()) {
@@ -94,25 +112,34 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     (this.props as any).dataPrevistaDevolucao = novaDataPrevista;
     (this.props as any).renovacoesCount = this.props.renovacoesCount + 1;
     (this.props as any).status = StatusEmprestimo.retirado();
+    // Se estava atrasado e renovou, zera atraso provisoriamente
+    (this.props as any).diasAtraso = 0;
+    (this.props as any).valorMulta = 0;
     (this.props as any).updateAt = agora;
   }
 
   /**
    * Evento: registrarDevolucao()
    * Transições:
-   *  - RETIRADO -> DEVOLVIDO
-   *  - ATRASADO -> DEVOLVIDO_COM_MULTA
+   *  - Se devolvido no prazo: RETIRADO -> DEVOLVIDO
+   *  - Se devolvido com atraso: RETIRADO/ATRASADO -> DEVOLVIDO_COM_MULTA
+   * Aplica a Calculadora de Multa Progressiva.
    */
   registrarDevolucao(temAvaria: boolean, descricaoAvaria?: string | null): void {
-    const proximoStatus = this.props.status.isAtrasado()
-      ? StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
-      : StatusEmprestimoEnum.DEVOLVIDO;
+    const agora = new Date();
+    const calculo = CalculadoraMultaService.calcular(this.props.dataPrevistaDevolucao, agora);
+
+    const proximoStatus =
+      calculo.diasAtraso > 0 || this.props.status.isAtrasado()
+        ? StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
+        : StatusEmprestimoEnum.DEVOLVIDO;
 
     // Guarda de transição da FSM
     this.props.status.validarTransicaoPara(proximoStatus);
 
-    const agora = new Date();
     (this.props as any).dataDevolucao = agora;
+    (this.props as any).diasAtraso = calculo.diasAtraso;
+    (this.props as any).valorMulta = calculo.valorMulta;
     (this.props as any).status =
       proximoStatus === StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
         ? StatusEmprestimo.devolvidoComMulta()
@@ -127,7 +154,6 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
    * Transição: RESERVADO -> CANCELADO
    */
   cancelarReserva(): void {
-    // Guarda de transição da FSM
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.CANCELADO);
 
     const agora = new Date();
@@ -137,10 +163,9 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
 
   /**
    * Evento: expirarReserva()
-   * Transição: RESERVADO -> EXPIRADO (acionado por lazy evaluation ou timeout)
+   * Transição: RESERVADO -> EXPIRADO (Lazy Evaluation ou timeout)
    */
   expirarReserva(): void {
-    // Guarda de transição da FSM
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.EXPIRADO);
 
     const agora = new Date();
@@ -153,18 +178,17 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
    * Transição: RETIRADO -> ATRASADO
    */
   marcarAtrasado(): void {
-    // Guarda de transição da FSM
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.ATRASADO);
 
     const agora = new Date();
+    const calculo = CalculadoraMultaService.calcular(this.props.dataPrevistaDevolucao, agora);
+
     (this.props as any).status = StatusEmprestimo.atrasado();
+    (this.props as any).diasAtraso = calculo.diasAtraso;
+    (this.props as any).valorMulta = calculo.valorMulta;
     (this.props as any).updateAt = agora;
   }
 
-  /**
-   * Atualização de dados cadastrais (título, tipo, usuário)
-   * Bloqueada para estados terminais.
-   */
   atualizarDados(tituloItem: string, tipoItem: string, usuarioNome: string): void {
     if (this.props.status.isTerminal()) {
       throw new Error(
