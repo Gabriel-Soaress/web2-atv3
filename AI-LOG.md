@@ -124,3 +124,73 @@ await prisma.historico.create({ ... });
 * **Refatoração para o nosso projeto:**
   * Criamos a entidade `HistoricoEmprestimo` vinculada via chave estrangeira ao `Emprestimo`.
   * No repositório, amarramos a transição de status e a criação do registro de auditoria dentro de uma única transação ACID (`$transaction` do Prisma). Se a gravação do log falhar por qualquer motivo, o status do empréstimo sofre rollback automático, garantindo que nenhuma mudança ocorra sem sua respectiva evidência de auditoria.
+
+---
+
+## 📑 Registro 04: Como modelar cálculo progressivo de penalidades e bloqueio de usuários?
+
+### 1. O Desafio
+Para o Tema 08, a especificação exige: *Cálculo progressivo de multas/bloqueio por dias de atraso*. Eu precisava consultar a IA sobre como modelar uma cobrança que não seja apenas uma taxa fixa (ex: R$ 1,00/dia), mas que aumente por faixas de gravidade do atraso, e como impedir preventivamente que o usuário continue reservando itens.
+
+### 2. O Prompt Utilizado
+```text
+Como modelar uma regra de cálculo de multa progressiva por faixas de dias de atraso 
+(ex: primeiros dias mais baratos, dias seguintes mais caros) e como implementar uma 
+regra de bloqueio que impeça o usuário de fazer novas reservas se ele tiver pendências?
+```
+
+### 3. A Resposta Bruta da IA
+```typescript
+// Sugestão da IA:
+function calcularMulta(dias: number) {
+  return dias * 2.5; // taxa linear
+}
+
+// No controller de reserva:
+const usuario = await prisma.usuario.findUnique({ where: { id } });
+if (usuario.bloqueado) {
+  throw new Error("Bloqueado");
+}
+```
+
+### 4. A Crítica e Refatoração do Aluno
+* **Onde a IA falhou/foi ingênua:**
+  1. A IA ignorou o conceito de *progressividade* e propôs uma multiplicação linear simples (`dias * 2.5`).
+  2. Para o bloqueio, supôs uma tabela separada de usuários com flag estática `bloqueado`, sem checar dinamicamente os empréstimos ativos daquele solicitante.
+* **Refatoração para o nosso projeto:**
+  * Criamos a classe [`CalculadoraMultaService`](file:///C:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/services/calculadora-multa.service.ts) com faixas progressivas:
+    - 1º ao 3º dia: R$ 2,00/dia
+    - 4º ao 7º dia: R$ 3,50/dia
+    - 8º dia em diante: R$ 5,00/dia
+  * Criamos a verificação dinâmica `verificarBloqueioUsuario` no repositório: antes de aceitar qualquer nova reserva, o sistema consulta atômica se o usuário possui pendências em `ATRASADO`. Se sim, a reserva é bloqueada com HTTP 422.
+
+---
+
+## 📑 Registro 05: Como exibir a trilha de auditoria e lidar com erros HTTP 422 no Frontend?
+
+### 1. O Desafio
+Como integrar a interface do Next.js com as regras da FSM, exibindo visualmente a trilha de auditoria (timeline de histórico) e apresentando feedbacks claros quando o backend recusa uma ação por violação de regra de negócio (HTTP 422).
+
+### 2. O Prompt Utilizado
+```text
+Em uma aplicação Next.js (App Router) com React e Tailwind, como criar um modal para exibir 
+uma timeline cronológica de eventos de auditoria e como capturar erros semânticos HTTP 422 
+do backend NestJS para exibir alertas amigáveis na UI?
+```
+
+### 3. A Resposta Bruta da IA
+```tsx
+// Sugestão da IA: alert comum do navegador
+try {
+  await fetch('/emprestimos/1/retirar');
+} catch (err) {
+  alert('Erro ao retirar');
+}
+```
+
+### 4. A Crítica e Refatoração do Aluno
+* **Onde a IA falhou/foi ingênua:**
+  - A IA sugeriu um `alert()` primitivo do JavaScript, ignorando os componentes de UI modernos do projeto e descartando a mensagem descritiva de erro retornada pelo backend no corpo JSON da resposta 422.
+* **Refatoração para o nosso projeto:**
+  * Criamos o componente modal [`EmprestimoHistoricoDialog`](file:///C:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_client/src/features/emprestimos/components/EmprestimoHistoricoDialog.tsx) com visualização em linha do tempo (timeline com badges coloridos de status anterior ➔ novo status, justificativa, autor e data formatada).
+  * No componente de tabela [`EmprestimosTable`](file:///C:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_client/src/features/emprestimos/components/EmprestimosTable.tsx), as Server Actions interceptam as respostas com status 422 e renderizam um banner estilizado com `ShieldAlert` informando o motivo exato do bloqueio de domínio.
