@@ -10,9 +10,10 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Info, PlusCircle, RefreshCw } from 'lucide-react';
+import { Info, PlusCircle, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  cancelarEmprestimo,
   getAllEmprestimos,
   renovarEmprestimo,
   retirarEmprestimo,
@@ -21,6 +22,7 @@ import { Emprestimo } from '../type/emprestimo.type';
 import { EmprestimoDeleteDialog } from './emprestimoDeleteDialog';
 import { EmprestimoDevolverDialog } from './emprestimoDevolverDialog';
 import { EmprestimoFormDialog } from './emprestimoFormDialog';
+import { EmprestimoHistoricoDialog } from './EmprestimoHistoricoDialog';
 import { getEmprestimoColumns } from './emprestimos-columns';
 
 interface EmprestimosTableProps {
@@ -43,6 +45,9 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
 
   const [isDevolverOpen, setIsDevolverOpen] = useState(false);
   const [devolvendoItem, setDevolvendoItem] = useState<Emprestimo | null>(null);
+
+  const [isHistoricoOpen, setIsHistoricoOpen] = useState(false);
+  const [historicoItem, setHistoricoItem] = useState<Emprestimo | null>(null);
 
   // Recarregar dados
   const loadData = useCallback(async () => {
@@ -75,6 +80,11 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
     setIsDevolverOpen(true);
   };
 
+  const handleOpenHistorico = (item: Emprestimo) => {
+    setHistoricoItem(item);
+    setIsHistoricoOpen(true);
+  };
+
   const handleRetirar = async (id: string) => {
     const res = await retirarEmprestimo(id);
     if (res.success) {
@@ -95,6 +105,16 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
     }
   };
 
+  const handleCancelar = async (id: string) => {
+    const res = await cancelarEmprestimo(id);
+    if (res.success) {
+      setFeedback({ type: 'success', message: res.message || 'Reserva cancelada com sucesso!' });
+      await loadData();
+    } else {
+      setFeedback({ type: 'error', message: res.message || 'Erro ao cancelar reserva.' });
+    }
+  };
+
   const columns = useMemo<ColumnDef<Emprestimo>[]>(
     () =>
       getEmprestimoColumns({
@@ -103,8 +123,10 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
         onRetirar: handleRetirar,
         onRenovar: handleRenovar,
         onDevolver: handleOpenDevolver,
+        onCancelar: handleCancelar,
+        onHistorico: handleOpenHistorico,
       }),
-    [],
+    [loadData],
   );
 
   const table = useReactTable({
@@ -120,11 +142,17 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
 
   return (
     <div className="space-y-4">
-      {/* Alerta de Feedback */}
+      {/* Alerta de Feedback com suporte a erros de domínio (HTTP 422) */}
       {feedback && (
         <Alert variant={feedback.type === 'error' ? 'destructive' : 'default'} className="mb-4">
-          <Info className="h-4 w-4" />
-          <AlertTitle>{feedback.type === 'error' ? 'Atenção' : 'Sucesso'}</AlertTitle>
+          {feedback.type === 'error' ? (
+            <ShieldAlert className="h-4 w-4" />
+          ) : (
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          )}
+          <AlertTitle>
+            {feedback.type === 'error' ? 'Bloqueio de Regra de Negócio' : 'Sucesso'}
+          </AlertTitle>
           <AlertDescription>{feedback.message}</AlertDescription>
         </Alert>
       )}
@@ -224,6 +252,13 @@ export function EmprestimosTable({ initialData = [] }: EmprestimosTableProps) {
           setFeedback({ type: 'success', message: 'Devolução registrada com sucesso!' });
           loadData();
         }}
+      />
+
+      {/* Dialog para Trilha de Auditoria (Audit Log) */}
+      <EmprestimoHistoricoDialog
+        isOpen={isHistoricoOpen}
+        onOpenChange={setIsHistoricoOpen}
+        emprestimo={historicoItem}
       />
     </div>
   );

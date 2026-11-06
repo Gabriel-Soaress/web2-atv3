@@ -6,6 +6,7 @@ import {
   DevolucaoFormData,
   Emprestimo,
   EmprestimoFormData,
+  HistoricoItem,
 } from '../type/emprestimo.type';
 
 const API_URL = 'http://localhost:8000/emprestimos';
@@ -255,5 +256,19 @@ export async function cancelarEmprestimo(id: string): Promise<ActionState<Empres
       success: false,
       message: error instanceof Error ? error.message : 'Erro ao conectar ao servidor.',
     };
+  }
+}
+
+
+export async function getHistoricoEmprestimo(id: string): Promise<HistoricoItem[]> {
+  try {
+    const response = await fetch(`${API_URL}/${id}/historico`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar histórico:', error);
+    return [];
   }
 }
