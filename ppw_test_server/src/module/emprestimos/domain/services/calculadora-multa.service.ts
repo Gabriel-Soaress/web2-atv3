@@ -4,12 +4,25 @@ export interface ResultadoCalculoMulta {
   descricaoCalculo: string;
 }
 
+/**
+ * CalculadoraMultaService
+ *
+ * Domain Service (Serviço de Domínio) puro e desacoplado de infraestrutura.
+ * Implementa a regra de negócio da tabela progressiva de multas por atraso (Tema 08):
+ * - Faixa 1 (1 a 3 dias): R$ 2,00 por dia
+ * - Faixa 2 (4 a 7 dias): R$ 3,50 por dia
+ * - Faixa 3 (8º dia em diante): R$ 5,00 por dia
+ */
 export class CalculadoraMultaService {
   /**
-   * Tabela progressiva de multas por dias de atraso (Tema 08):
-   * - Até 3 dias: R$ 2,00 por dia
-   * - De 4 a 7 dias: R$ 3,50 por dia
-   * - A partir do 8º dia: R$ 5,00 por dia
+   * calcular()
+   *
+   * Realiza o cálculo progressivo de dias de atraso e valor total da multa
+   * comparando a data prevista de devolução com a data em que a devolução ocorreu ou está sendo consultada.
+   * Se a devolução for no prazo ou antes, retorna atraso zero e multa zerada.
+   *
+   * @param dataPrevista - Data e hora originalmente combinadas para devolução do item.
+   * @param dataEfetiva - Data e hora efetiva da devolução (padrão: data/hora atual).
    */
   static calcular(
     dataPrevista: Date | null | undefined,
@@ -22,7 +35,6 @@ export class CalculadoraMultaService {
     const prevista = new Date(dataPrevista);
     const efetiva = new Date(dataEfetiva);
 
-    // Se devolvido no prazo ou antes, multa zero
     if (efetiva <= prevista) {
       return { diasAtraso: 0, valorMulta: 0, descricaoCalculo: 'Devolução dentro do prazo.' };
     }
@@ -37,13 +49,11 @@ export class CalculadoraMultaService {
     let valorTotal = 0;
     const detalhes: string[] = [];
 
-    // Faixa 1: dias 1 a 3 (R$ 2,00/dia)
     const diasFaixa1 = Math.min(diasAtraso, 3);
     const valorFaixa1 = diasFaixa1 * 2.0;
     valorTotal += valorFaixa1;
     detalhes.push(`${diasFaixa1} dia(s) a R$ 2,00`);
 
-    // Faixa 2: dias 4 a 7 (R$ 3,50/dia)
     if (diasAtraso > 3) {
       const diasFaixa2 = Math.min(diasAtraso - 3, 4);
       const valorFaixa2 = diasFaixa2 * 3.5;
@@ -51,7 +61,6 @@ export class CalculadoraMultaService {
       detalhes.push(`${diasFaixa2} dia(s) a R$ 3,50`);
     }
 
-    // Faixa 3: dia 8 em diante (R$ 5,00/dia)
     if (diasAtraso > 7) {
       const diasFaixa3 = diasAtraso - 7;
       const valorFaixa3 = diasFaixa3 * 5.0;

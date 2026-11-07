@@ -8,12 +8,25 @@ import {
 import { StatusEmprestimoEnum } from '../../domain/value-objects/status-emprestimo.value-object';
 import { EmprestimoMappers } from '../mappers/emprestimo.mappers';
 
+/**
+ * EmprestimoPrismaWriteRepository
+ *
+ * Repositório de escrita (Write Model no padrão CQRS) integrado com Prisma ORM e PostgreSQL.
+ * Executa mutações de dados envolvidas em transações ACID (`$transaction`) garantindo que
+ * alterações de estado sempre criem atomicamente uma trilha de auditoria imutável (HistoricoEmprestimo).
+ */
 @Injectable()
 export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Criação de empréstimo/reserva com Audit Log atômico via Transação ACID ($transaction).
+   * create()
+   *
+   * Persiste uma nova reserva no banco de dados e registra atomicamente o primeiro registro de auditoria.
+   * Ambas as operações ocorrem na mesma transação ACID para evitar inconsistências em caso de falha.
+   *
+   * @param emprestimo - Entidade de domínio a ser inserida.
+   * @param options - Metadados de auditoria (autor da ação e justificativa descritiva).
    */
   async create(
     emprestimo: EmprestimoEntity,
@@ -24,7 +37,6 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
     return await this.prisma.$transaction(async (tx) => {
       const created = await tx.emprestimo.create({ data });
 
-      // Gravação atômica da trilha de auditoria inicial
       await tx.historicoEmprestimo.create({
         data: {
           emprestimoId: created.id,
@@ -40,7 +52,13 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
   }
 
   /**
-   * Atualização com Audit Log atômico via Transação ACID ($transaction).
+   * update()
+   *
+   * Atualiza os dados de um empréstimo existente no banco de dados.
+   * Se houver transição de status ou justificativa informada, insere um novo evento na tabela de histórico de auditoria.
+   *
+   * @param emprestimo - Entidade de domínio contendo os dados e status atualizados.
+   * @param options - Metadados de auditoria (autor da ação e justificativa do evento).
    */
   async update(
     emprestimo: EmprestimoEntity,
@@ -58,7 +76,6 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
         data,
       });
 
-      // Se houve alteração de status, registra o evento na trilha de auditoria
       if (registroAtual && (registroAtual.status !== updated.status || options?.justificativa)) {
         await tx.historicoEmprestimo.create({
           data: {
@@ -77,6 +94,13 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
     });
   }
 
+  /**
+   * delete()
+   *
+   * Remove o registro de empréstimo do banco de dados pelo seu identificador primário.
+   *
+   * @param id - Identificador UUID do empréstimo a ser removido.
+   */
   async delete(id: string): Promise<void> {
     await this.prisma.emprestimo.delete({
       where: { id },
@@ -84,10 +108,12 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
   }
 
   /**
-   * Padrão Lazy Expiration (Just-In-Time Evaluation):
-   * Avalia atômica e preguiçosamente todas as reservas cujo prazo limite venceu,
-   * transicionando-as para EXPIRADO e gerando os respectivos logs de auditoria
-   * sem depender de nenhum cron job externo ou daemon em background.
+   * processarExpiracoesLazy()
+   *
+   * Implementação do padrão arquitetural Lazy Evaluation (Just-In-Time).
+   * Varre no banco reservas cujo prazo limite de 48 horas foi ultrapassado, transicionando-as
+   * para EXPIRADO e gerando os logs de auditoria correspondentes de forma atômica,
+   * dispensando processos em segundo plano (daemons ou cron jobs).
    */
   async processarExpiracoesLazy(): Promise<number> {
     const agora = new Date();

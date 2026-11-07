@@ -45,6 +45,13 @@ import {
   OperacoesEmprestimoUseCase,
 } from '../application/use-case/write/operacoes-emprestimo.use-case';
 
+/**
+ * EmprestimosController
+ *
+ * Controlador HTTP REST (Camada de Apresentação).
+ * Expõe endpoints semânticos para operações CRUD e transições de estado da FSM,
+ * delegando toda a execução para os respectivos casos de uso da aplicação.
+ */
 @Controller('emprestimos')
 export class EmprestimosController {
   constructor(
@@ -62,30 +69,62 @@ export class EmprestimosController {
     private readonly operacoesUseCase: OperacoesEmprestimoUseCase,
   ) {}
 
-  // 1. GET /emprestimos -> Listar todos
+  /**
+   * listar() [GET /emprestimos]
+   *
+   * Retorna a lista completa de empréstimos e reservas cadastradas no sistema.
+   */
   @Get()
   async listar(): Promise<EmprestimoResponse[]> {
     return this.findAllUseCase.execute();
   }
 
-  // 1.1 GET /emprestimos/:id/historico -> Consultar Trilha de Auditoria (Audit Log)
+  /**
+   * obterHistorico() [GET /emprestimos/:id/historico]
+   *
+   * Retorna a trilha de auditoria completa (Audit Log) de um empréstimo específico,
+   * exibindo transições de status, datas, autores e justificativas operacionais.
+   *
+   * @param id - Identificador UUID do empréstimo consultado.
+   */
   @Get(':id/historico')
   async obterHistorico(@Param('id') id: string): Promise<HistoricoResponse[]> {
     return this.findHistoricoUseCase.execute(id);
   }
 
-  // 2. POST /emprestimos -> Criar reserva
+  /**
+   * reservar() [POST /emprestimos/reservar]
+   *
+   * Cria uma nova reserva de livro ou equipamento.
+   *
+   * @param dto - Dados da reserva contendo título, categoria e solicitante.
+   */
   @Post('reservar')
   async reservar(@Body() dto: CriarReservaRequest): Promise<EmprestimoResponse> {
     return this.criarReservaUseCase.execute(dto);
   }
 
+  /**
+   * criar() [POST /emprestimos]
+   *
+   * Rota padrão REST para criação de nova reserva/empréstimo.
+   *
+   * @param dto - Dados da reserva contendo título, categoria e solicitante.
+   */
   @Post()
   async criar(@Body() dto: CriarReservaRequest): Promise<EmprestimoResponse> {
     return this.criarReservaUseCase.execute(dto);
   }
 
-  // 3. PUT /emprestimos/:id -> Atualização cadastral estrita (apenas dados descritivos, sem tocar em status)
+  /**
+   * atualizar() [PUT /emprestimos/:id]
+   *
+   * Permite atualização estritamente cadastral (título, categoria, solicitante)
+   * sem interferir no ciclo de vida da máquina de estados.
+   *
+   * @param id - Identificador UUID do empréstimo a ser editado.
+   * @param dto - Dados cadastrais atualizados.
+   */
   @Put(':id')
   async atualizar(
     @Param('id') id: string,
@@ -94,41 +133,75 @@ export class EmprestimosController {
     return this.atualizarUseCase.execute(id, dto);
   }
 
-  // 4. DELETE /emprestimos/:id -> Excluir empréstimo
+  /**
+   * excluir() [DELETE /emprestimos/:id]
+   *
+   * Remove o empréstimo do banco de dados (retorna HTTP 204 No Content).
+   *
+   * @param id - Identificador UUID do empréstimo a ser excluído.
+   */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async excluir(@Param('id') id: string): Promise<void> {
     await this.excluirUseCase.execute(id);
   }
 
-  // ==========================================
-  // EVENTOS EXPLÍCITOS DA MÁQUINA DE ESTADOS (FSM)
-  // Suporte a POST semântico e PATCH por compatibilidade
-  // ==========================================
-
-  // 5. POST|PATCH /emprestimos/:id/retirar -> Evento: Retirar item
+  /**
+   * retirarPost() [POST /emprestimos/:id/retirar]
+   *
+   * Dispara o evento de retirada física do item pelo usuário (RESERVADO -> RETIRADO).
+   *
+   * @param id - Identificador UUID do empréstimo a ser retirado.
+   */
   @Post(':id/retirar')
   async retirarPost(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.retirar(id);
   }
 
+  /**
+   * retirarPatch() [PATCH /emprestimos/:id/retirar]
+   *
+   * Rota compatível para disparo do evento de retirada do item.
+   *
+   * @param id - Identificador UUID do empréstimo a ser retirado.
+   */
   @Patch(':id/retirar')
   async retirarPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.retirar(id);
   }
 
-  // 6. POST|PATCH /emprestimos/:id/renovar -> Evento: Renovar prazo
+  /**
+   * renovarPost() [POST /emprestimos/:id/renovar]
+   *
+   * Dispara a extensão do prazo de devolução por 7 dias adicionais.
+   *
+   * @param id - Identificador UUID do empréstimo a ser renovado.
+   */
   @Post(':id/renovar')
   async renovarPost(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.renovar(id);
   }
 
+  /**
+   * renovarPatch() [PATCH /emprestimos/:id/renovar]
+   *
+   * Rota compatível para extensão do prazo de devolução.
+   *
+   * @param id - Identificador UUID do empréstimo a ser renovado.
+   */
   @Patch(':id/renovar')
   async renovarPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.renovar(id);
   }
 
-  // 7. POST|PATCH /emprestimos/:id/devolver -> Evento: Registrar devolução
+  /**
+   * devolverPost() [POST /emprestimos/:id/devolver]
+   *
+   * Dispara o evento de encerramento e devolução do item com vistoria de avarias e cálculo de multa.
+   *
+   * @param id - Identificador UUID do empréstimo a ser devolvido.
+   * @param dto - Relatório da vistoria física (avarias e descrição).
+   */
   @Post(':id/devolver')
   async devolverPost(
     @Param('id') id: string,
@@ -137,6 +210,14 @@ export class EmprestimosController {
     return this.operacoesUseCase.devolver(id, dto);
   }
 
+  /**
+   * devolverPatch() [PATCH /emprestimos/:id/devolver]
+   *
+   * Rota compatível para devolução do item.
+   *
+   * @param id - Identificador UUID do empréstimo a ser devolvido.
+   * @param dto - Relatório da vistoria física.
+   */
   @Patch(':id/devolver')
   async devolverPatch(
     @Param('id') id: string,
@@ -145,23 +226,49 @@ export class EmprestimosController {
     return this.operacoesUseCase.devolver(id, dto);
   }
 
-  // 8. POST|PATCH /emprestimos/:id/cancelar -> Evento: Cancelar reserva
+  /**
+   * cancelarPost() [POST /emprestimos/:id/cancelar]
+   *
+   * Dispara o cancelamento voluntário de uma reserva pendente.
+   *
+   * @param id - Identificador UUID da reserva a ser cancelada.
+   */
   @Post(':id/cancelar')
   async cancelarPost(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.cancelar(id);
   }
 
+  /**
+   * cancelarPatch() [PATCH /emprestimos/:id/cancelar]
+   *
+   * Rota compatível para cancelamento voluntário de reserva pendente.
+   *
+   * @param id - Identificador UUID da reserva a ser cancelada.
+   */
   @Patch(':id/cancelar')
   async cancelarPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.cancelar(id);
   }
 
-  // 9. POST|PATCH /emprestimos/:id/marcar-atrasado -> Evento: Detectar/Registrar atraso
+  /**
+   * marcarAtrasadoPost() [POST /emprestimos/:id/marcar-atrasado]
+   *
+   * Registra a marcação de atraso do item quando a data prevista é superada.
+   *
+   * @param id - Identificador UUID do empréstimo em atraso.
+   */
   @Post(':id/marcar-atrasado')
   async marcarAtrasadoPost(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.marcarAtrasado(id);
   }
 
+  /**
+   * marcarAtrasadoPatch() [PATCH /emprestimos/:id/marcar-atrasado]
+   *
+   * Rota compatível para marcação de atraso do empréstimo.
+   *
+   * @param id - Identificador UUID do empréstimo em atraso.
+   */
   @Patch(':id/marcar-atrasado')
   async marcarAtrasadoPatch(@Param('id') id: string): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.marcarAtrasado(id);

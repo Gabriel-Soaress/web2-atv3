@@ -16,6 +16,15 @@ import {
 import { EmprestimoMappers } from '../../../infrastructure/mappers/emprestimo.mappers';
 import { CriarReservaUseCase } from '../../use-case/write/criar-reserva.use-case';
 
+/**
+ * CriarReservaService
+ *
+ * Caso de uso e serviço de aplicação responsável pela criação de uma nova reserva.
+ * Garante três validações críticas de concorrência e integridade antes de salvar:
+ * 1. Processa expirações lazy pendentes.
+ * 2. Bloqueia usuários que possuam multas ou pendências anteriores.
+ * 3. Impede double-booking (reserva concorrente do mesmo exemplar).
+ */
 @Injectable()
 export class CriarReservaService implements CriarReservaUseCase {
   constructor(
@@ -25,17 +34,22 @@ export class CriarReservaService implements CriarReservaUseCase {
     private readonly writeRepo: EmprestimoWriteRepository,
   ) {}
 
+  /**
+   * execute()
+   *
+   * Executa o fluxo de criação da reserva: checa bloqueios e disponibilidade,
+   * converte a requisição em entidade de domínio e grava atomicamente com justificativa inicial.
+   *
+   * @param request - DTO contendo título do item, tipo e nome do solicitante.
+   */
   async execute(request: CriarReservaRequest): Promise<EmprestimoResponse> {
-    // 1. Padrão Lazy Expiration: processa expirações pendentes no banco antes de alocar
     await this.writeRepo.processarExpiracoesLazy();
 
-    // 2. Regra de Negócio de Alta Complexidade: Verificação de bloqueio por atrasos anteriores
     const statusBloqueio = await this.readRepo.verificarBloqueioUsuario(request.usuarioNome);
     if (statusBloqueio.bloqueado) {
       throw new UnprocessableEntityException(statusBloqueio.motivo);
     }
 
-    // 3. Conflito Assíncrono / Concorrência: Prevenção de double-booking do mesmo exemplar
     const disponivel = await this.readRepo.verificarDisponibilidadeItem(request.tituloItem);
     if (!disponivel) {
       throw new UnprocessableEntityException(

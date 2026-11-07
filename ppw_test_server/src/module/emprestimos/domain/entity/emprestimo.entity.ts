@@ -20,11 +20,31 @@ export type EmprestimoProps = {
   valorMulta: number;
 } & DefaulTimeStampsProps;
 
+/**
+ * EmprestimoEntity
+ *
+ * Entidade central do domínio (DDD) que representa um Empréstimo.
+ * Concentra todas as regras de negócio, invariantes e máquina de estados (FSM)
+ * do ciclo de vida de empréstimos e reservas de livros e equipamentos,
+ * isolada de frameworks ou banco de dados.
+ */
 export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
   constructor(props: EmprestimoProps) {
     super(props);
   }
 
+  /**
+   * createReserva()
+   *
+   * Cria uma nova reserva de item colocando a entidade no estado inicial RESERVADO.
+   * Define automaticamente a data da reserva e o prazo limite de 48 horas para a retirada.
+   *
+   * @param tituloItem - Nome ou identificação do livro/equipamento reservado.
+   * @param tipoItem - Categoria do item (ex: LIVRO, NOTEBOOK, PROJETOR).
+   * @param usuarioNome - Nome completo da pessoa solicitante.
+   * @param id - Identificador UUID opcional (se omitido, será gerado pela base).
+   * @param ttlHorasRetirada - Janela de tempo em horas até o cancelamento por expiração (padrão: 48h).
+   */
   static createReserva(
     tituloItem: string,
     tipoItem: string,
@@ -37,7 +57,6 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     }
 
     const agora = new Date();
-    // Prazo limite para retirada: 48 horas a partir da reserva
     const dataLimite = new Date(agora.getTime() + ttlHorasRetirada * 60 * 60 * 1000);
 
     return new EmprestimoEntity({
@@ -57,18 +76,24 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     });
   }
 
+  /**
+   * restore()
+   *
+   * Reconstrói uma entidade com dados já existentes vindos do banco de dados (usado pelo Mapper).
+   * Não dispara validações de nova criação nem reseta prazos ou contadores.
+   *
+   * @param props - Objeto com todos os atributos já persistidos da entidade.
+   */
   static restore(props: EmprestimoProps): EmprestimoEntity {
     return new EmprestimoEntity(props);
   }
 
-  // ==========================================
-  // AÇÕES ORIENTADAS A EVENTOS DA FSM
-  // ==========================================
-
   /**
-   * Evento: registrarRetirada()
-   * Transição: RESERVADO -> RETIRADO
-   * Valida se o prazo limite de retirada não expirou.
+   * registrarRetirada()
+   *
+   * Registra a retirada física do item pelo usuário, transitando de RESERVADO para RETIRADO.
+   * Valida se a retirada está ocorrendo dentro do prazo limite (48h) e agenda
+   * o prazo de devolução para 7 dias após o momento da retirada.
    */
   registrarRetirada(): void {
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.RETIRADO);
@@ -90,8 +115,11 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
   }
 
   /**
-   * Evento: renovarPrazo()
-   * Transição: Válido para RETIRADO ou ATRASADO
+   * renovarPrazo()
+   *
+   * Estende o prazo de devolução do empréstimo em mais 7 dias a partir da data de vencimento atual.
+   * Permitido apenas para itens RETIRADOS ou ATRASADOS. Incrementa o contador de renovações
+   * e zera temporariamente valores de multa calculados antes da extensão.
    */
   renovarPrazo(): void {
     if (!this.props.status.isRetirado() && !this.props.status.isAtrasado()) {
@@ -112,18 +140,21 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     (this.props as any).dataPrevistaDevolucao = novaDataPrevista;
     (this.props as any).renovacoesCount = this.props.renovacoesCount + 1;
     (this.props as any).status = StatusEmprestimo.retirado();
-    // Se estava atrasado e renovou, zera atraso provisoriamente
     (this.props as any).diasAtraso = 0;
     (this.props as any).valorMulta = 0;
     (this.props as any).updateAt = agora;
   }
 
   /**
-   * Evento: registrarDevolucao()
-   * Transições:
-   *  - Se devolvido no prazo: RETIRADO -> DEVOLVIDO
-   *  - Se devolvido com atraso: RETIRADO/ATRASADO -> DEVOLVIDO_COM_MULTA
-   * Aplica a Calculadora de Multa Progressiva.
+   * registrarDevolucao()
+   *
+   * Processa a devolução do item e finaliza o empréstimo.
+   * Utiliza a CalculadoraMultaService para checar se houve atraso. Se houver atraso,
+   * transita para DEVOLVIDO_COM_MULTA; se devolvido no prazo, transita para DEVOLVIDO.
+   * Também registra se o item sofreu alguma avaria física durante o uso.
+   *
+   * @param temAvaria - Indica se o item devolvido possui avarias ou danos físicos.
+   * @param descricaoAvaria - Detalhes textuais da avaria constatada na inspeção física.
    */
   registrarDevolucao(temAvaria: boolean, descricaoAvaria?: string | null): void {
     const agora = new Date();
@@ -134,7 +165,6 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
         ? StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
         : StatusEmprestimoEnum.DEVOLVIDO;
 
-    // Guarda de transição da FSM
     this.props.status.validarTransicaoPara(proximoStatus);
 
     (this.props as any).dataDevolucao = agora;
@@ -150,8 +180,10 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
   }
 
   /**
-   * Evento: cancelarReserva()
-   * Transição: RESERVADO -> CANCELADO
+   * cancelarReserva()
+   *
+   * Cancela voluntariamente uma reserva que ainda não teve o item retirado.
+   * Transita de RESERVADO para CANCELADO.
    */
   cancelarReserva(): void {
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.CANCELADO);
@@ -162,8 +194,10 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
   }
 
   /**
-   * Evento: expirarReserva()
-   * Transição: RESERVADO -> EXPIRADO (Lazy Evaluation ou timeout)
+   * expirarReserva()
+   *
+   * Marca a reserva como EXPIRADA quando o prazo limite de 48 horas para retirada é ultrapassado.
+   * Acionado de forma preguiçosa (Lazy Evaluation) pelo repositório ao consultar ou persistir dados.
    */
   expirarReserva(): void {
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.EXPIRADO);
@@ -174,8 +208,10 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
   }
 
   /**
-   * Evento: marcarAtrasado()
-   * Transição: RETIRADO -> ATRASADO
+   * marcarAtrasado()
+   *
+   * Altera o status de um item que estava RETIRADO para ATRASADO quando o prazo previsto vence.
+   * Calcula os dias de atraso decorridos e o valor proporcional da multa até o momento presente.
    */
   marcarAtrasado(): void {
     this.props.status.validarTransicaoPara(StatusEmprestimoEnum.ATRASADO);
@@ -189,6 +225,16 @@ export class EmprestimoEntity extends BaseEntity<EmprestimoProps> {
     (this.props as any).updateAt = agora;
   }
 
+  /**
+   * atualizarDados()
+   *
+   * Permite editar as informações cadastrais do empréstimo (título, categoria e usuário).
+   * Impede a edição caso o empréstimo já esteja em um estado terminal (DEVOLVIDO, CANCELADO, EXPIRADO).
+   *
+   * @param tituloItem - Novo título ou identificação do item.
+   * @param tipoItem - Nova categoria ou tipo do item.
+   * @param usuarioNome - Novo nome do usuário solicitante.
+   */
   atualizarDados(tituloItem: string, tipoItem: string, usuarioNome: string): void {
     if (this.props.status.isTerminal()) {
       throw new Error(

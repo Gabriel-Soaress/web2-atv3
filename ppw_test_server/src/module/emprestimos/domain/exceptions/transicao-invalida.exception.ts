@@ -1,6 +1,23 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
+/**
+ * TransicaoInvalidaException
+ *
+ * Exceção semântica de domínio disparada quando uma tentativa de alteração de status
+ * viola a matriz de transições da Máquina de Estados Finita (FSM).
+ * Estende HttpException retornando o status HTTP 422 (Unprocessable Entity) com payload
+ * detalhado sobre o estado atual, destino tentado e estados permitidos.
+ */
 export class TransicaoInvalidaException extends HttpException {
+  /**
+   * constructor()
+   *
+   * Constrói a mensagem e o payload semântico de erro HTTP 422 informando as restrições da FSM.
+   *
+   * @param statusAtual - Status em que a entidade se encontra no momento da tentativa.
+   * @param statusDestino - Status para o qual a requisição tentou mudar a entidade.
+   * @param permitidos - Lista de status legalmente permitidos a partir do status atual.
+   */
   constructor(statusAtual: string, statusDestino: string, permitidos: string[]) {
     const mensagem =
       permitidos.length > 0

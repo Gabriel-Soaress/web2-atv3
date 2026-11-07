@@ -9,10 +9,23 @@ import {
 import { StatusEmprestimoEnum } from '../../domain/value-objects/status-emprestimo.value-object';
 import { EmprestimoMappers } from '../mappers/emprestimo.mappers';
 
+/**
+ * EmprestimoPrismaReadRepository
+ *
+ * Repositório de leitura (Read Model no padrão CQRS) integrado com Prisma ORM.
+ * Focado exclusivamente em consultas eficientes e rápidas (Queries), sem transações de escrita.
+ * Contém também métodos de consulta para verificação de regras de negócio (bloqueios e concorrência).
+ */
 @Injectable()
 export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * findAll()
+   *
+   * Busca todos os empréstimos no banco ordenados pela data de reserva mais recente.
+   * Converte os modelos planos do Prisma em entidades de domínio.
+   */
   async findAll(): Promise<EmprestimoEntity[]> {
     const rawList = await this.prisma.emprestimo.findMany({
       orderBy: { dataReserva: 'desc' },
@@ -20,6 +33,14 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
     return rawList.map((raw) => EmprestimoMappers.toEntityFromPrisma(raw));
   }
 
+  /**
+   * findById()
+   *
+   * Localiza um empréstimo específico pela sua chave primária UUID.
+   * Retorna a entidade de domínio reconstruída ou null se não for encontrado.
+   *
+   * @param id - Identificador UUID do empréstimo.
+   */
   async findById(id: string): Promise<EmprestimoEntity | null> {
     const raw = await this.prisma.emprestimo.findUnique({
       where: { id },
@@ -28,6 +49,14 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
     return EmprestimoMappers.toEntityFromPrisma(raw);
   }
 
+  /**
+   * findHistorico()
+   *
+   * Consulta a trilha de auditoria completa (Audit Log) de um determinado empréstimo,
+   * retornando os registros ordenados do evento mais recente para o mais antigo.
+   *
+   * @param emprestimoId - Identificador UUID do empréstimo cujos eventos serão consultados.
+   */
   async findHistorico(emprestimoId: string): Promise<HistoricoItemRecord[]> {
     const logs = await this.prisma.historicoEmprestimo.findMany({
       where: { emprestimoId },
@@ -46,8 +75,12 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
   }
 
   /**
-   * Regra de Alta Complexidade: Verifica se o usuário possui pendências de atraso ativas.
-   * Se possuir itens ATRASADOS ou RETIRADOS com data de devolução vencida, bloqueia novas reservas.
+   * verificarBloqueioUsuario()
+   *
+   * Verifica se o usuário possui pendências de devolução ativas (empréstimos ATRASADOS
+   * ou RETIRADOS com data prevista vencida). Se houver pendências, retorna o motivo e os itens bloqueantes.
+   *
+   * @param usuarioNome - Nome do solicitante a ser verificado.
    */
   async verificarBloqueioUsuario(usuarioNome: string): Promise<StatusBloqueioUsuario> {
     const agora = new Date();
@@ -86,7 +119,12 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
   }
 
   /**
-   * Concorrência / Double-Booking: Verifica se um exemplar já está alocado.
+   * verificarDisponibilidadeItem()
+   *
+   * Previne conflito assíncrono e concorrência (double-booking) de um mesmo exemplar.
+   * Verifica se o item já possui empréstimo ou reserva ativa no momento (RESERVADO, RETIRADO ou ATRASADO).
+   *
+   * @param tituloItem - Título ou identificador do item a ser consultado.
    */
   async verificarDisponibilidadeItem(tituloItem: string): Promise<boolean> {
     const ativo = await this.prisma.emprestimo.findFirst({
