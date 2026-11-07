@@ -3,7 +3,8 @@
 > **Projeto:** 08 - Controle de Empréstimo de Livros / Equipamentos Internos  
 > **Aluno:** Gabriel Soares Pedrosa (`bi3041271`)  
 > **Banco Oficial:** PostgreSQL (`10.102.55.11:5432`, schema `bi3041271`)  
-> **Objetivo deste documento:** Seu roteiro prático e mental para sentar no laboratório com o professor, defender o código com segurança, responder perguntas conceituais e demonstrar liderança arquitetural.
+> **Objetivo deste documento:** Seu roteiro prático e mental para sentar no laboratório com o professor, defender o código com segurança, responder perguntas conceituais e demonstrar liderança arquitetural.  
+> 📖 **Guia Completo de Arquivos e Pastas:** Para saber a função exata de cada arquivo do backend e frontend, consulte [`docs/mapa_arquitetura_e_arquivos.md`](mapa_arquitetura_e_arquivos.md).
 
 ---
 
@@ -38,7 +39,8 @@ Quando você abrir o VS Code no laboratório, tenha esses arquivos na ponta da l
 | **As Transações ACID e Audit Log** | `src/module/emprestimos/infrastructure/adapters/emprestimo.prisma.write.repository.ts` | O bloco `this.prisma.$transaction` com update e insert atômico do log |
 | **O Schema do PostgreSQL** | `prisma/schema.prisma` | Tabelas `web2_A1_emprestimos` e `web2_A3_historico_emprestimos` + entidades legadas |
 | **O Seeding de Demonstração** | `prisma/seed.ts` | 6 cenários realistas cobrindo todos os estados da FSM |
-| **O Relatório Crítico de IA** | `AI-LOG.md` | 7 registros documentando governança, setup do PostgreSQL, FSM, ACID, multas e UI |
+| **O Mapa Completo de Arquivos** | `docs/mapa_arquitetura_e_arquivos.md` | Explicação de cada arquivo e pasta do backend e frontend |
+| **O Relatório Crítico de IA** | `AI-LOG.md` | Diário de bordo registrando seus questionamentos e decisões |
 
 ---
 
