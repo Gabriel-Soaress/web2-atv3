@@ -11,9 +11,11 @@
 
 ## 2. A Proposta Inicial do Agente
 - Criar um `setInterval` no `main.ts` rodando a cada 60 segundos no processo Node.js.
-- **Risco Identificado por Gabriel:** Timers morrem na reinicialização do servidor e geram concorrência desnecessária no banco em ambientes com réplicas.
 
-## 3. Correção e Passos Executados
+## 3. O que Gabriel Questionou
+- *"Mas esse setInterval aí não fica rodando no servidor gastando memória e processamento direto mesmo quando ninguém tiver usando o sistema? E se o servidor reiniciar ou a gente subir outra instância da aplicação, não vai dar conflito de timers no banco? No texto o professor comentou sobre avaliar sob demanda, como seria isso?"*
+
+## 4. Decisão e Passos Executados
 1. Implementar o padrão *Lazy Evaluation* no repositório de persistência.
 2. Criar o método privado `expirarReservasVencidas()` com `updateMany` transacional.
 3. Invocar a checagem sob demanda no momento em que qualquer leitura de lista ou tentativa de alocação de item é solicitada.

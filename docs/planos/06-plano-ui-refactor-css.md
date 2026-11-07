@@ -13,9 +13,12 @@
 
 ## 2. A Proposta Inicial do Agente
 - Manter `overflow-x: scroll` ou colocar todas as ações dentro de um único dropdown genérico.
-- **Risco Identificado por Gabriel:** Péssima ergonomia de interface e lentidão no fluxo diário do operador de empréstimos.
 
-## 3. Correção e Passos Executados
+## 3. O que Gabriel Questionou / Reclamou
+- *"Ok, o css dos itens na lista ficou ruim, muito botão sem organização. Ta ruim ainda, ficou com scroll horizontal, se quiser pode tirar o css inline e criar um arquivo separado, mas analisa. O botão de renovar pode aparecer na barra também."*
+- E após a primeira entrega: *"n é a atv 3? ta escrito 2 lá"*.
+
+## 4. Decisão e Passos Executados
 1. Criar o arquivo de estilos dedicados `emprestimos.module.css` com `table-layout: fixed; width: 100%`.
 2. Unificar *Item* e *Solicitante* na mesma coluna, otimizando o espaço da tela.
 3. Definir larguras percentuais precisas: 31% Item & Usuário, 18% Status, 23% Prazos/Multas, 28% Ações (totalizando exatamente 100% sem scroll).

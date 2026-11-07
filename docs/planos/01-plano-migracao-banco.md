@@ -13,9 +13,11 @@
 
 ## 2. A Proposta Inicial do Agente
 - Rodar `npx prisma db push --force-reset`.
-- **Risco Identificado por Gabriel:** O comando apagaria a tabela `tickets` existente no banco.
 
-## 3. Correção e Passos Executados
+## 3. O que Gabriel Questionou
+- Gabriel estranhou o `--force-reset` e alertou: *"Esse schema é o meu oficial da faculdade e já tem tabelas de outros trabalhos meus (como a tabela `tickets`). Se der reset não vai apagar tudo que já entreguei? Como fazemos pra sincronizar sem apagar o que já tá lá?"*
+
+## 4. Decisão e Passos Executados
 1. Executar `npx prisma db pull --print` para inspecionar o schema compartilhado.
 2. Manter a modelagem de `tickets`, `Prioridade` e `Status` no `schema.prisma`.
 3. Adicionar mapeamento de namespace: `web2_A1_emprestimos` e `web2_A3_historico_emprestimos`.

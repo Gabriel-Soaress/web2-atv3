@@ -11,10 +11,12 @@
 - Responder com **HTTP 422 Unprocessable Entity** em caso de tentativa de salto inválido.
 
 ## 2. A Proposta Inicial do Agente
-- Manter o `PUT` e encher o método da Controller com blocos `if/else`, lançando `BadRequestException` (HTTP 400).
-- **Risco Identificado por Gabriel:** Violação de Clean Architecture (regra vazando na Controller) e uso incorreto de código HTTP.
+- Manter o `PUT` e colocar blocos `if/else` dentro da Controller, lançando `BadRequestException` (HTTP 400).
 
-## 3. Correção e Passos Executados
+## 3. O que Gabriel Questionou
+- *"Mas peraí, se a gente colocar esse monte de `if` na Controller, não vai bagunçar a Controller inteira e violar o que o professor falou de deixar as regras no Domínio? E esse erro 400 aí, não tem um código HTTP mais específico pra quando a sintaxe do JSON tá certa, mas a regra de negócio não permite a ação? Como a gente faria isso direto no Domínio?"*
+
+## 4. Decisão e Passos Executados
 1. Criar o Value Object `StatusEmprestimo` com a matriz imutável `TRANSICOES_VALIDAS_FSM` na camada de Domínio.
 2. Criar a exceção de domínio `TransicaoInvalidaException` mapeada para HTTP 422.
 3. Adicionar métodos de negócio explícitos na entidade `Emprestimo` (`registrarRetirada()`, `registrarDevolucao()`, `cancelarReserva()`).

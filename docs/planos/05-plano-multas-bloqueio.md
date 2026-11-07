@@ -11,9 +11,11 @@
 
 ## 2. A Proposta Inicial do Agente
 - Multiplicação linear (`dias * R$ 2,50`) e criação de coluna estática `bloqueado` na tabela de usuários.
-- **Risco Identificado por Gabriel:** Ignorava a regra de escalonamento progressivo e criava dependência de sincronização manual de flags.
 
-## 3. Correção e Passos Executados
+## 3. O que Gabriel Questionou
+- *"Mas no texto complementar o professor falou em multa progressiva, tipo quem atrasa mais dias paga mais caro a diária pra incentivar a devolver rápido, não foi? Multiplicar direto por 2,50 não fica linear demais? E pra bloquear o usuário, precisa mesmo criar uma tabela de usuário com coluna `bloqueado`? A gente não consegue só olhar no banco se aquele cara já tem algum empréstimo ativo com status atrasado?"*
+
+## 4. Decisão e Passos Executados
 1. Criar o serviço de domínio `CalculadoraMultaService` com 3 faixas progressivas:
    - 1º ao 3º dia: R$ 2,00 / dia
    - 4º ao 7º dia: R$ 3,50 / dia
