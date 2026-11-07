@@ -1,0 +1,20 @@
+{
+  "folders": [
+    {
+      "name": "Atividade 3 - Raiz & Docs",
+      "path": "."
+    },
+    {
+      "name": "Backend (NestJS / Prisma)",
+      "path": "ppw_test_server"
+    },
+    {
+      "name": "Frontend (Next.js / Tailwind)",
+      "path": "ppw_test_client"
+    }
+  ],
+  "settings": {
+    "typescript.tsdk": "ppw_test_server/node_modules/typescript/lib",
+    "typescript.suggest.autoImports": true
+  }
+}
