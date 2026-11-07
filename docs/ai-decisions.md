@@ -11,16 +11,15 @@
 
 ## 📌 Como estruturei o trabalho com o Agente
 
-Para a Atividade 3, resolvi utilizar o **Antigravity** como meu assistente de desenvolvimento (pair programmer). Como os temas de Máquina de Estados, Concorrência, Auditoria e Multas vieram de textos complementares bem densos, eu precisava de uma forma ágil de entender a teoria, planejar a arquitetura e implementar tudo sem me perder.
+Para a Atividade 3, utilizei o **Antigravity** como meu assistente de desenvolvimento (pair programmer). Como os temas de Máquina de Estados, Concorrência, Auditoria e Multas vieram de textos complementares bem densos, estruturei um fluxo formal de engenharia para conduzir o agente com segurança:
 
-O fluxo que adotei foi:
 1. **Montar o "cérebro" do agente (`brain`):** Dei as instruções iniciais de comportamento, criei a pasta `brain/`, subi nela os textos complementares do professor, o enunciado da atividade e os critérios de avaliação, e instruí o agente a registrar o histórico de planejamento.
 2. **Delimitar o escopo e ambiente:** Deixei claro que ele só podia mexer na pasta `atvs avaliativas/atv3`, que usaríamos a nossa Atividade 2 como base e que iríamos nos conectar diretamente ao PostgreSQL da faculdade.
-3. **Estudo prévio dos textos:** Pedi para ele ler os PDFs e me trazer resumos didáticos dos 4 temas centrais para eu dominar o conceito antes de mexer no código.
-4. **Geração do `/plan` geral:** Com os conceitos claros, pedi um plano macro de execução ordenado logicamente.
-5. **Planos específicos e desenvolvimento interativo:** Conforme fomos avançando etapa por etapa, fui mandando prompts técnicos, o agente montava o plano de ação, eu analisava, corrigia o que achava que estava errado ou simplista demais, e mandava ele executar.
+3. **Estudo prévio dos textos:** Pedi para ele ler os PDFs e me trazer resumos didáticos dos 4 temas centrais para eu dominar o conceito antes de mexer no código. Salvei essas pesquisas em `/atv3/docs/pesquisas/`.
+4. **Geração do `/plan` geral:** Com os conceitos claros, pedi um plano macro de execução ordenado logicamente. Salvei esse planejamento em `/atv3/docs/planos/plano-geral-atv3.md`.
+5. **Planos específicos e desenvolvimento interativo:** Conforme fomos avançando etapa por etapa, criei planos dedicados para cada módulo em `/atv3/docs/planos/`, fui mandando prompts técnicos, o agente montava a proposta de código, eu analisava, corrigia o que achava que estava errado ou simplista demais, e mandava ele executar.
 
-Abaixo está o registro passo a passo dessa jornada.
+Abaixo está o registro passo a passo dessa jornada com os endereços de todos os artefatos gerados.
 
 ---
 
@@ -49,7 +48,7 @@ O agente confirmou as diretrizes, inicializou a pasta `brain/` de contexto da se
 
 ---
 
-## 📚 Passo 2: Estudo dos Textos Complementares e Resumo Didático
+## 📚 Passo 2: Estudo dos Textos Complementares e Resumos Didáticos
 
 Antes de sair escrevendo código, pedi para o agente analisar os textos do professor que estavam no `brain` e me trazer uma explicação prática de cada um, para eu entender o "porquê" de cada requisito.
 
@@ -61,15 +60,16 @@ e direto ao ponto de cada um dos 4 temas principais da Atividade 3:
 2. Rastreabilidade e Auditoria (Audit Log)
 3. Conflitos Assíncronos e Expiração
 4. Multas e Bloqueios
-Explique o que cada um significa na prática para o meu tema (Empréstimo de Livros/Equipamentos).
+Explique o que cada um significa na prática para o meu tema (Empréstimo de Livros/Equipamentos) 
+e salve esses resumos didáticos em arquivos markdown na pasta /atv3/docs/pesquisas/.
 ```
 
-### Resumo que o Agente me trouxe:
-O agente gerou uma síntese que me ajudou a clarear os requisitos:
-- **FSM:** Um livro não pode simplesmente "mudar para qualquer status". Ele começa como `RESERVADO`, só pode ir para `RETIRADO` se for retirado, e só pode ir para `DEVOLVIDO` se antes estava retirado. O CRUD com `PUT` tradicional permite burlar isso se o status for um campo livre.
-- **Audit Log:** Em sistemas sérios você nunca dá apenas `UPDATE` de status apagando o anterior. Cada mudança gera uma linha histórica imutável dizendo quem mudou, que horas, qual era o status velho e qual o novo.
-- **Conflitos Assíncronos & Expiração:** Se alguém reserva um livro e não busca em 48h, a reserva tem que expirar para liberar o livro para outros. O desafio é fazer isso sem depender de um cron job no servidor que possa parar do nada.
-- **Multas & Bloqueio:** Se devolver com atraso, a multa deve ser progressiva (quanto mais dias atrasado, mais cara a diária), e o usuário inadimplente não pode fazer novas reservas enquanto não regularizar.
+### Resumos Didáticos Gerados e Arquivados:
+O agente gerou as pesquisas didáticas completas, arquivadas nos seguintes endereços:
+- 📄 [`/atv3/docs/pesquisas/01-fsm-maquina-estados.md`](/atvs%20avaliativas/atv3/docs/pesquisas/01-fsm-maquina-estados.md): O modelo da FSM, por que o `PUT` tradicional é falho e a matriz de transições.
+- 📄 [`/atv3/docs/pesquisas/02-audit-log-rastreabilidade.md`](/atvs%20avaliativas/atv3/docs/pesquisas/02-audit-log-rastreabilidade.md): Por que `UPDATE` apaga a história e como estruturar tabelas append-only com consistência ACID.
+- 📄 [`/atv3/docs/pesquisas/03-concorrencia-expiracao-lazy.md`](/atvs%20avaliativas/atv3/docs/pesquisas/03-concorrencia-expiracao-lazy.md): O problema de double-booking, limites de cron jobs e o padrão de *Lazy Evaluation* (Just-in-Time).
+- 📄 [`/atv3/docs/pesquisas/04-multas-progressivas-bloqueio.md`](/atvs%20avaliativas/atv3/docs/pesquisas/04-multas-progressivas-bloqueio.md): Por que a multa deve ser por faixas e o bloqueio preventivo dinâmico.
 
 Com esses conceitos fixados na minha cabeça, estávamos prontos para o plano prático.
 
@@ -82,29 +82,28 @@ Pedi para o agente criar um plano geral ordenado para executarmos a atividade do
 ### Meu Prompt:
 ```text
 Agora que entendemos a teoria, monte um /plan geral da Atividade 3 estruturando a implementação 
-numa ordem lógica, desde o setup da base e banco até a entrega final e documentação.
+numa ordem lógica, desde o setup da base e banco até a entrega final e documentação. 
+Salve esse plano geral no arquivo /atv3/docs/planos/plano-geral-atv3.md.
 ```
 
-### O Plano Geral que ele estruturou no `brain/`:
-```markdown
-# /plan Geral - Atividade 3: Sistema de Empréstimos (Tema 08)
-- [x] Etapa 1: Copiar a base da Atividade 2 para atv3 e conectar no PostgreSQL institucional.
-- [x] Etapa 2: Implementar a Máquina de Estados Finita (FSM) no Domínio com bloqueio HTTP 422.
-- [x] Etapa 3: Implementar a Trilha de Auditoria (Audit Log) com persistência atômica ACID.
-- [x] Etapa 4: Implementar Concorrência e Expiração Automática de Reservas (Lazy Evaluation).
-- [x] Etapa 5: Implementar o Serviço de Multas Progressivas e Bloqueio Preventivo.
-- [x] Etapa 6: Ajustar o Frontend Next.js para refletir ações semânticas e feedbacks da FSM.
-- [x] Etapa 7: Refinar UI, layout e eliminar scrolls indesejados.
-- [x] Etapa 8: Criar seed com dados de teste e documentação final (README, AI-LOG, Guia Oral).
-```
+### O Plano Geral Arquivado:
+- 📄 Arquivo gerado: [`/atv3/docs/planos/plano-geral-atv3.md`](/atvs%20avaliativas/atv3/docs/planos/plano-geral-atv3.md)
 
-Aprovado o plano geral, fomos atacando etapa por etapa.
+O plano estruturou as seguintes etapas:
+- **Etapa 1:** Copiar a base da Atividade 2 para `atv3` e conectar no PostgreSQL institucional.
+- **Etapa 2:** Implementar a Máquina de Estados Finita (FSM) no Domínio com bloqueio HTTP 422.
+- **Etapa 3:** Implementar a Trilha de Auditoria (Audit Log) com persistência atômica ACID.
+- **Etapa 4:** Implementar Concorrência e Expiração Automática de Reservas (Lazy Evaluation).
+- **Etapa 5:** Implementar o Serviço de Multas Progressivas e Bloqueio Preventivo.
+- **Etapa 6:** Refatorar o Frontend Next.js para refletir ações semânticas e eliminar scroll horizontal.
+- **Etapa 7:** Criar seed com dados de teste e documentação final (README, AI-LOG, Guia Oral).
 
 ---
 
 ## 🗄️ Passo 4: Migração da ATV2 e Conexão ao PostgreSQL (A Primeira Correção)
 
 Começamos clonando a base da `atv2` para a pasta `atv3` e configurando a conexão com o banco oficial da faculdade.
+- 📄 Plano detalhado da etapa: [`/atv3/docs/planos/01-plano-migracao-banco.md`](/atvs%20avaliativas/atv3/docs/planos/01-plano-migracao-banco.md)
 
 ### Meu Prompt:
 ```text
@@ -127,7 +126,7 @@ O agente copiou os arquivos, ajustou o `.env` e sugeriu:
 
 ### O que o Agente Executou:
 - Rodou o pull, identificou a tabela `tickets` existente (com 3 registros) e os enums `Prioridade` e `Status`.
-- Preservou tudo no [`schema.prisma`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/prisma/schema.prisma).
+- Preservou tudo no [`/atv3/ppw_test_server/prisma/schema.prisma`](/atvs%20avaliativas/atv3/ppw_test_server/prisma/schema.prisma).
 - Mapeou a tabela de empréstimos para `web2_A1_emprestimos` e a de auditoria para `web2_A3_historico_emprestimos`.
 - Sincronizou com o banco com sucesso sem perder um único dado antigo.
 - Commitou na branch `feature/database-postgres`.
@@ -137,6 +136,7 @@ O agente copiou os arquivos, ajustou o `.env` e sugeriu:
 ## 🔄 Passo 5: Implementando a FSM no Domínio (Segunda Correção)
 
 Avançamos para a Etapa 2: transformar a troca de status em uma Máquina de Estados Finita.
+- 📄 Plano detalhado da etapa: [`/atv3/docs/planos/02-plano-fsm-dominio.md`](/atvs%20avaliativas/atv3/docs/planos/02-plano-fsm-dominio.md)
 
 ### Meu Prompt:
 ```text
@@ -156,9 +156,9 @@ O agente sugeriu colocar a validação direto na Controller:
 > Vamos fazer direito: crie um Value Object de Domínio chamado `StatusEmprestimo` com a matriz de transições válidas dentro dele. Na entidade `Emprestimo`, crie os métodos de negócio (`registrarRetirada`, `registrarDevolucao`, etc.) que chamam a validação do Value Object. Se for inválido, lance uma exceção customizada `TransicaoInvalidaException` que retorne 422."*
 
 ### O que o Agente Executou:
-- Criou o Value Object [`status-emprestimo.value-object.ts`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/value-objects/status-emprestimo.value-object.ts) com a matriz `TRANSICOES_VALIDAS_FSM`.
-- Criou a exceção [`transicao-invalida.exception.ts`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/exceptions/transicao-invalida.exception.ts) retornando 422.
-- Adicionou as rotas semânticas no [`emprestimos.controller.ts`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/presentation/emprestimos.controller.ts): `POST /emprestimos/:id/retirar`, `/devolver`, `/renovar`, `/cancelar`.
+- Criou o Value Object [`/atv3/ppw_test_server/src/module/emprestimos/domain/value-objects/status-emprestimo.value-object.ts`](/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/value-objects/status-emprestimo.value-object.ts) com a matriz `TRANSICOES_VALIDAS_FSM`.
+- Criou a exceção [`/atv3/ppw_test_server/src/module/emprestimos/domain/exceptions/transicao-invalida.exception.ts`](/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/exceptions/transicao-invalida.exception.ts) retornando 422.
+- Adicionou as rotas semânticas no [`/atv3/ppw_test_server/src/module/emprestimos/presentation/emprestimos.controller.ts`](/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/presentation/emprestimos.controller.ts): `POST /emprestimos/:id/retirar`, `/devolver`, `/renovar`, `/cancelar`.
 - Commitou na branch `feature/fsm-maquina-estados`.
 
 ---
@@ -166,6 +166,7 @@ O agente sugeriu colocar a validação direto na Controller:
 ## 📜 Passo 6: Trilha de Auditoria (Audit Log) com Transação ACID (Terceira Correção)
 
 Na Etapa 3, fomos fazer o registro imutável do histórico de cada ação.
+- 📄 Plano detalhado da etapa: [`/atv3/docs/planos/03-plano-audit-log-acid.md`](/atvs%20avaliativas/atv3/docs/planos/03-plano-audit-log-acid.md)
 
 ### Meu Prompt:
 ```text
@@ -188,7 +189,7 @@ await this.prisma.web2_A3_historico_emprestimos.create({ data: { ...dadosLog } }
 > Coloque os dois comandos dentro de um `this.prisma.$transaction(async (tx) => { ... })`. Se o histórico der erro, o update do empréstimo tem que sofrer rollback imediato. É isso que significa transação ACID."*
 
 ### O que o Agente Executou:
-- Atualizou o método no repositório [`emprestimo.prisma.write.repository.ts`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/infrastructure/adapters/emprestimo.prisma.write.repository.ts) envolvendo o `tx.web2_A1_emprestimos.update` e o `tx.web2_A3_historico_emprestimos.create` sob a mesma transação atômica.
+- Atualizou o repositório [`/atv3/ppw_test_server/src/module/emprestimos/infrastructure/adapters/emprestimo.prisma.write.repository.ts`](/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/infrastructure/adapters/emprestimo.prisma.write.repository.ts) envolvendo o `tx.web2_A1_emprestimos.update` e o `tx.web2_A3_historico_emprestimos.create` sob a mesma transação atômica.
 - Criou a rota `GET /emprestimos/:id/historico` para retornar a timeline de auditoria.
 - Commitou na branch `feature/audit-log-acid`.
 
@@ -197,6 +198,7 @@ await this.prisma.web2_A3_historico_emprestimos.create({ data: { ...dadosLog } }
 ## ⏱️ Passo 7: Expiração de Reservas sem Cron Job - Lazy Evaluation (Quarta Correção)
 
 Na Etapa 4, fomos resolver a expiração automática de reservas não retiradas no prazo de 48h.
+- 📄 Plano detalhado da etapa: [`/atv3/docs/planos/04-plano-expiracao-lazy.md`](/atvs%20avaliativas/atv3/docs/planos/04-plano-expiracao-lazy.md)
 
 ### Meu Prompt:
 ```text
@@ -224,6 +226,7 @@ O agente sugeriu colocar um timer no Node:
 ## 💰 Passo 8: Multas Progressivas e Bloqueio Preventivo (Quinta Correção)
 
 Na Etapa 5, entramos na regra de devoluções atrasadas e penalidades financeiras.
+- 📄 Plano detalhado da etapa: [`/atv3/docs/planos/05-plano-multas-bloqueio.md`](/atvs%20avaliativas/atv3/docs/planos/05-plano-multas-bloqueio.md)
 
 ### Meu Prompt:
 ```text
@@ -245,15 +248,16 @@ O agente planejou:
 > E sobre o bloqueio, não precisa criar tabela nem coluna de usuário: faça a checagem dinâmica no próprio repositório: se o usuário tiver algum empréstimo ativo com status `ATRASADO`, barra a reserva imediatamente com HTTP 422."*
 
 ### O que o Agente Executou:
-- Criou o [`calculadora-multa.service.ts`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/services/calculadora-multa.service.ts) com o cálculo por faixas progressivas.
+- Criou o [`/atv3/ppw_test_server/src/module/emprestimos/domain/services/calculadora-multa.service.ts`](/atvs%20avaliativas/atv3/ppw_test_server/src/module/emprestimos/domain/services/calculadora-multa.service.ts) com o cálculo por faixas progressivas.
 - Adicionou a verificação dinâmica no repositório antes de criar novas reservas.
-- Criou o [`seed.ts`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_server/prisma/seed.ts) populando 6 casos reais no PostgreSQL da faculdade (incluindo casos com atraso e multa calculada para testar).
+- Criou o [`/atv3/ppw_test_server/prisma/seed.ts`](/atvs%20avaliativas/atv3/ppw_test_server/prisma/seed.ts) populando 6 casos reais no PostgreSQL da faculdade (incluindo casos com atraso e multa calculada para testar).
 
 ---
 
 ## 🎨 Passo 9: Refatorando o Frontend, Excesso de Botões e Resolução de Scroll (Mudança de Planos)
 
 Na Etapa 6 e 7, fomos rodar o frontend Next.js (`ppw_test_client`) para testar na tela. Ao abrir, notei que a tabela tinha ficado muito carregada.
+- 📄 Plano detalhado da etapa: [`/atv3/docs/planos/06-plano-ui-refactor-css.md`](/atvs%20avaliativas/atv3/docs/planos/06-plano-ui-refactor-css.md)
 
 ### Meu Feedback / Prompt:
 ```text
@@ -267,7 +271,7 @@ O botão de renovar pode aparecer na barra também.
 A primeira versão colocava 6 botões soltos em cada linha (`Retirar`, `Cancelar`, `Renovar`, `Devolver`, `Histórico`, `Editar`, `Excluir`), além de classes gigantescas do Tailwind inline. A tabela estourava a largura da tela e criava uma barra de rolagem horizontal horrível (`overflow-x-auto`).
 
 ### Como Conduzi a Solução:
-1. **Mandei isolar o CSS:** Criamos o [`emprestimos.module.css`](file:///c:/Users/soares/Documents/Faculdade/4º%20semestre/web2/ppw-cocao/atvs%20avaliativas/atv3/ppw_test_client/src/features/emprestimos/components/emprestimos.module.css) com `table-layout: fixed; width: 100%`, tirando a bagunça de classes do JSX.
+1. **Mandei isolar o CSS:** Criamos o [`/atv3/ppw_test_client/src/features/emprestimos/components/emprestimos.module.css`](/atvs%20avaliativas/atv3/ppw_test_client/src/features/emprestimos/components/emprestimos.module.css) com `table-layout: fixed; width: 100%`, tirando a bagunça de classes do JSX.
 2. **Unifiquei colunas:** Juntei o *Item* e o *Solicitante* na mesma coluna com hierarquia de texto, liberando espaço horizontal.
 3. **Organizei os botões:**
    - Botão primário contextual na barra: se tá reservado aparece **Retirar**; se tá em uso aparece **Devolver**.
@@ -292,14 +296,14 @@ O agente atualizou para:
 
 ## 🎯 Síntese: Onde o Agente Tentou Simplificar e Onde Eu Corrigi
 
-| Etapa | O que o Agente propôs de início | Minha Correção de Rumos |
-| :--- | :--- | :--- |
-| **Banco de Dados** | Rodar `prisma db push --force-reset` | Bloqueei o reset para não apagar a tabela `tickets` existente no meu schema institucional; fiz pull e preservei os dados legados. |
-| **FSM / Transições** | Colocar validação com `if` solto na Controller com `HTTP 400` | Exigi Value Object puro no Domínio (`StatusEmprestimo`) e exceção semântica com `HTTP 422`. |
-| **Audit Log** | Fazer dois `await` soltos (update e create) | Exigi que as duas operações rodassem sob a mesma transação atômica (`$transaction`) para garantir consistência ACID. |
-| **Expiração** | Criar um `setInterval` de 60s rodando no Node | Rejeitei o timer em memória e adotei *Lazy Evaluation* no banco disparado sob demanda. |
-| **Multas** | Multiplicação simples (`dias * 2.5`) e flag estática no usuário | Criei a `CalculadoraMultaService` com 3 faixas progressivas e checagem dinâmica de atrasos no repositório. |
-| **Interface / CSS** | Deixar 6 botões soltos por linha e scroll horizontal na tabela | Mandei tirar o CSS inline para um arquivo separado (`.module.css`), usei `table-layout: fixed`, deixei o botão Renovar na barra e guardei o restante no dropdown. |
+| Etapa | O que o Agente propôs de início | Minha Correção de Rumos | Artefato de Plano Vinculado |
+| :--- | :--- | :--- | :--- |
+| **Banco de Dados** | Rodar `prisma db push --force-reset` | Bloqueei o reset para não apagar a tabela `tickets` existente no meu schema institucional; fiz pull e preservei os dados legados. | [`/atv3/docs/planos/01-plano-migracao-banco.md`](/atvs%20avaliativas/atv3/docs/planos/01-plano-migracao-banco.md) |
+| **FSM / Transições** | Colocar validação com `if` solto na Controller com `HTTP 400` | Exigi Value Object puro no Domínio (`StatusEmprestimo`) e exceção semântica com `HTTP 422`. | [`/atv3/docs/planos/02-plano-fsm-dominio.md`](/atvs%20avaliativas/atv3/docs/planos/02-plano-fsm-dominio.md) |
+| **Audit Log** | Fazer dois `await` soltos (update e create) | Exigi que as duas operações rodassem sob a mesma transação atômica (`$transaction`) para garantir consistência ACID. | [`/atv3/docs/planos/03-plano-audit-log-acid.md`](/atvs%20avaliativas/atv3/docs/planos/03-plano-audit-log-acid.md) |
+| **Expiração** | Criar um `setInterval` de 60s rodando no Node | Rejeitei o timer em memória e adotei *Lazy Evaluation* no banco disparado sob demanda. | [`/atv3/docs/planos/04-plano-expiracao-lazy.md`](/atvs%20avaliativas/atv3/docs/planos/04-plano-expiracao-lazy.md) |
+| **Multas** | Multiplicação simples (`dias * 2.5`) e flag estática no usuário | Criei a `CalculadoraMultaService` com 3 faixas progressivas e checagem dinâmica de atrasos no repositório. | [`/atv3/docs/planos/05-plano-multas-bloqueio.md`](/atvs%20avaliativas/atv3/docs/planos/05-plano-multas-bloqueio.md) |
+| **Interface / CSS** | Deixar 6 botões soltos por linha e scroll horizontal na tabela | Mandei tirar o CSS inline para um arquivo separado (`.module.css`), usei `table-layout: fixed`, deixei o botão Renovar na barra e guardei o restante no dropdown. | [`/atv3/docs/planos/06-plano-ui-refactor-css.md`](/atvs%20avaliativas/atv3/docs/planos/06-plano-ui-refactor-css.md) |
 
 ---
 
