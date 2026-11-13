@@ -1,16 +1,7 @@
-import {
-  HttpException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { RegistrarDevolucaoRequest } from '../../dto/emprestimo.request.dto';
 import { EmprestimoResponse } from '../../dto/emprestimo.response.dto';
-import {
-  EMPRESTIMO_READ_REPOSITORY,
-  EmprestimoReadRepository,
-} from '../../../domain/ports/emprestimo.read.repository';
+import { EMPRESTIMO_READ_REPOSITORY, EmprestimoReadRepository } from '../../../domain/ports/emprestimo.read.repository';
 import {
   EMPRESTIMO_WRITE_REPOSITORY,
   EmprestimoWriteRepository,
@@ -74,8 +65,7 @@ export class OperacoesEmprestimoService implements OperacoesEmprestimoUseCase {
 
     const updated = await this.writeRepo.update(emprestimo, {
       autorAcao: emprestimo.props.usuarioNome,
-      justificativa:
-        'Retirada do item realizada com sucesso. Prazo de devolução definido para 7 dias.',
+      justificativa: 'Retirada do item realizada com sucesso. Prazo de devolução definido para 7 dias.',
     });
     return EmprestimoMappers.toResponseFromEntity(updated);
   }

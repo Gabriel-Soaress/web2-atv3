@@ -24,10 +24,7 @@ export class CalculadoraMultaService {
    * @param dataPrevista - Data e hora originalmente combinadas para devolução do item.
    * @param dataEfetiva - Data e hora efetiva da devolução (padrão: data/hora atual).
    */
-  static calcular(
-    dataPrevista: Date | null | undefined,
-    dataEfetiva: Date = new Date(),
-  ): ResultadoCalculoMulta {
+  static calcular(dataPrevista: Date | null | undefined, dataEfetiva: Date = new Date()): ResultadoCalculoMulta {
     if (!dataPrevista) {
       return { diasAtraso: 0, valorMulta: 0, descricaoCalculo: 'Sem data prevista definida.' };
     }

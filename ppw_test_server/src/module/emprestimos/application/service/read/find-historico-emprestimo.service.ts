@@ -1,9 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { HistoricoResponse } from '../../dto/emprestimo.response.dto';
-import {
-  EMPRESTIMO_READ_REPOSITORY,
-  EmprestimoReadRepository,
-} from '../../../domain/ports/emprestimo.read.repository';
+import { EMPRESTIMO_READ_REPOSITORY, EmprestimoReadRepository } from '../../../domain/ports/emprestimo.read.repository';
 import { FindHistoricoEmprestimoUseCase } from '../../use-case/read/find-historico-emprestimo.use-case';
 
 @Injectable()

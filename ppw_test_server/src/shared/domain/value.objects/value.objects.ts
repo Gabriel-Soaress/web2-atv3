@@ -1,6 +1,4 @@
-
-
-export abstract class ValueObjects<T>{
+export abstract class ValueObjects<T> {
   protected readonly _value: T;
 
   constructor(value: T) {
@@ -12,10 +10,7 @@ export abstract class ValueObjects<T>{
   }
   equals(vo?: ValueObjects<T> | null): boolean {
     if (vo === null || vo === undefined) return false;
-    if(this.constructor !== vo.constructor) return false;
+    if (this.constructor !== vo.constructor) return false;
     return JSON.stringify(this._value) === JSON.stringify(vo._value);
   }
-
-
-
 }

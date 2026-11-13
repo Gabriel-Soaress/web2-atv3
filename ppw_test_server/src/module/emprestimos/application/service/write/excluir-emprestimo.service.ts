@@ -1,8 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  EMPRESTIMO_READ_REPOSITORY,
-  EmprestimoReadRepository,
-} from '../../../domain/ports/emprestimo.read.repository';
+import { EMPRESTIMO_READ_REPOSITORY, EmprestimoReadRepository } from '../../../domain/ports/emprestimo.read.repository';
 import {
   EMPRESTIMO_WRITE_REPOSITORY,
   EmprestimoWriteRepository,

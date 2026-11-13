@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { EmprestimoEntity } from '../../domain/entity/emprestimo.entity';
-import {
-  AuditOptions,
-  EmprestimoWriteRepository,
-} from '../../domain/ports/emprestimo.write.repository';
+import { AuditOptions, EmprestimoWriteRepository } from '../../domain/ports/emprestimo.write.repository';
 import { StatusEmprestimoEnum } from '../../domain/value-objects/status-emprestimo.value-object';
 import { EmprestimoMappers } from '../mappers/emprestimo.mappers';
 
@@ -28,10 +25,7 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
    * @param emprestimo - Entidade de domínio a ser inserida.
    * @param options - Metadados de auditoria (autor da ação e justificativa descritiva).
    */
-  async create(
-    emprestimo: EmprestimoEntity,
-    options?: AuditOptions,
-  ): Promise<EmprestimoEntity> {
+  async create(emprestimo: EmprestimoEntity, options?: AuditOptions): Promise<EmprestimoEntity> {
     const data = EmprestimoMappers.toPrismaFromEntity(emprestimo);
 
     return await this.prisma.$transaction(async (tx) => {
@@ -60,10 +54,7 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
    * @param emprestimo - Entidade de domínio contendo os dados e status atualizados.
    * @param options - Metadados de auditoria (autor da ação e justificativa do evento).
    */
-  async update(
-    emprestimo: EmprestimoEntity,
-    options?: AuditOptions,
-  ): Promise<EmprestimoEntity> {
+  async update(emprestimo: EmprestimoEntity, options?: AuditOptions): Promise<EmprestimoEntity> {
     const data = EmprestimoMappers.toPrismaFromEntity(emprestimo);
 
     return await this.prisma.$transaction(async (tx) => {
@@ -84,8 +75,7 @@ export class EmprestimoPrismaWriteRepository implements EmprestimoWriteRepositor
             novoStatus: updated.status,
             autorAcao: options?.autorAcao || updated.usuarioNome || 'SISTEMA',
             justificativa:
-              options?.justificativa ||
-              `Transição de estado de ${registroAtual.status} para ${updated.status}`,
+              options?.justificativa || `Transição de estado de ${registroAtual.status} para ${updated.status}`,
           },
         });
       }

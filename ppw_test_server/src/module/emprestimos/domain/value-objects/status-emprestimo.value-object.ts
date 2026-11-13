@@ -1,5 +1,5 @@
-import { ValueObjects } from "../../../../shared/domain/value.objects/value.objects";
-import { TransicaoInvalidaException } from "../exceptions/transicao-invalida.exception";
+import { ValueObjects } from '../../../../shared/domain/value.objects/value.objects';
+import { TransicaoInvalidaException } from '../exceptions/transicao-invalida.exception';
 
 export enum StatusEmprestimoEnum {
   RESERVADO = 'RESERVADO',
@@ -24,10 +24,7 @@ export const TRANSICOES_VALIDAS_FSM: Record<StatusEmprestimoEnum, StatusEmpresti
     StatusEmprestimoEnum.EXPIRADO,
     StatusEmprestimoEnum.CANCELADO,
   ],
-  [StatusEmprestimoEnum.RETIRADO]: [
-    StatusEmprestimoEnum.DEVOLVIDO,
-    StatusEmprestimoEnum.ATRASADO,
-  ],
+  [StatusEmprestimoEnum.RETIRADO]: [StatusEmprestimoEnum.DEVOLVIDO, StatusEmprestimoEnum.ATRASADO],
   [StatusEmprestimoEnum.ATRASADO]: [
     StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA,
     StatusEmprestimoEnum.DEVOLVIDO,
@@ -214,10 +211,7 @@ export class StatusEmprestimo extends ValueObjects<StatusEmprestimoEnum> {
    * Indica se o empréstimo foi devolvido (com ou sem multa).
    */
   isDevolvido(): boolean {
-    return (
-      this.value === StatusEmprestimoEnum.DEVOLVIDO ||
-      this.value === StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA
-    );
+    return this.value === StatusEmprestimoEnum.DEVOLVIDO || this.value === StatusEmprestimoEnum.DEVOLVIDO_COM_MULTA;
   }
 
   /**

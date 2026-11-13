@@ -133,11 +133,7 @@ export class EmprestimoPrismaReadRepository implements EmprestimoReadRepository 
           equals: tituloItem.trim(),
         },
         status: {
-          in: [
-            StatusEmprestimoEnum.RESERVADO,
-            StatusEmprestimoEnum.RETIRADO,
-            StatusEmprestimoEnum.ATRASADO,
-          ],
+          in: [StatusEmprestimoEnum.RESERVADO, StatusEmprestimoEnum.RETIRADO, StatusEmprestimoEnum.ATRASADO],
         },
       },
     });

@@ -1,25 +1,10 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Put } from '@nestjs/common';
 import {
   AtualizarEmprestimoRequest,
   CriarReservaRequest,
   RegistrarDevolucaoRequest,
 } from '../application/dto/emprestimo.request.dto';
-import {
-  EmprestimoResponse,
-  HistoricoResponse,
-} from '../application/dto/emprestimo.response.dto';
+import { EmprestimoResponse, HistoricoResponse } from '../application/dto/emprestimo.response.dto';
 import {
   FIND_ALL_EMPRESTIMOS_USE_CASE,
   FindAllEmprestimosUseCase,
@@ -28,10 +13,7 @@ import {
   FIND_HISTORICO_EMPRESTIMO_USE_CASE,
   FindHistoricoEmprestimoUseCase,
 } from '../application/use-case/read/find-historico-emprestimo.use-case';
-import {
-  CRIAR_RESERVA_USE_CASE,
-  CriarReservaUseCase,
-} from '../application/use-case/write/criar-reserva.use-case';
+import { CRIAR_RESERVA_USE_CASE, CriarReservaUseCase } from '../application/use-case/write/criar-reserva.use-case';
 import {
   ATUALIZAR_EMPRESTIMO_USE_CASE,
   AtualizarEmprestimoUseCase,
@@ -126,10 +108,7 @@ export class EmprestimosController {
    * @param dto - Dados cadastrais atualizados.
    */
   @Put(':id')
-  async atualizar(
-    @Param('id') id: string,
-    @Body() dto: AtualizarEmprestimoRequest,
-  ): Promise<EmprestimoResponse> {
+  async atualizar(@Param('id') id: string, @Body() dto: AtualizarEmprestimoRequest): Promise<EmprestimoResponse> {
     return this.atualizarUseCase.execute(id, dto);
   }
 
@@ -203,10 +182,7 @@ export class EmprestimosController {
    * @param dto - Relatório da vistoria física (avarias e descrição).
    */
   @Post(':id/devolver')
-  async devolverPost(
-    @Param('id') id: string,
-    @Body() dto: RegistrarDevolucaoRequest,
-  ): Promise<EmprestimoResponse> {
+  async devolverPost(@Param('id') id: string, @Body() dto: RegistrarDevolucaoRequest): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.devolver(id, dto);
   }
 
@@ -219,10 +195,7 @@ export class EmprestimosController {
    * @param dto - Relatório da vistoria física.
    */
   @Patch(':id/devolver')
-  async devolverPatch(
-    @Param('id') id: string,
-    @Body() dto: RegistrarDevolucaoRequest,
-  ): Promise<EmprestimoResponse> {
+  async devolverPatch(@Param('id') id: string, @Body() dto: RegistrarDevolucaoRequest): Promise<EmprestimoResponse> {
     return this.operacoesUseCase.devolver(id, dto);
   }
 
